@@ -12,4 +12,4 @@ Note: it relies on the library [scikit-mobility](https://github.com/scikit-mobil
 * represent in a plot the total quantity of each pollutant on the edges in the road network.
 
 ### Example
-See the notebook example_in_Rome to get an idea of a step-by-step procedure to compute and plot emissions.
+See the notebook `example_in_Rome.ipynb` to get an idea of a step-by-step procedure to compute and plot emissions.
