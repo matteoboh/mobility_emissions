@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dt
 from speed_and_acceleration import *
 
-def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2', save_fig=False):
+
+def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
+									 color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
 
 	Plotting emissions of one of four pollutants using the module osmnx.plot_graph_routes.
-	Colors indicate intensity of cumulate emissions on each road,
-	from dark green (low) to yellow (high).
+	Colors indicate intensity of cumulate emissions on each road.
 
 	Parameters
 	----------
@@ -19,7 +20,7 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 	road_network : networkx MultiDiGraph
 
 	name_of_pollutant : string
-		name of the pollutant to plot
+		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
 
 	Returns
 	-------
@@ -32,30 +33,37 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 	if 'road_link' not in tdf_with_emissions.columns:
 		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
 
-	road_links = list(tdf_with_emissions['road_link'])
-	emissions = list(tdf_with_emissions[name_of_pollutant])
+	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
 
-	dict_road_to_emissions = {}
-	for index in range(0, len(road_links)):
-		c_road = (road_links[index][0], road_links[index][1])
-		dict_road_to_emissions.setdefault(c_road, []).append(emissions[index])
+	# extracting the list of roads and creating a list of colors to color them:
+	list_roads = []
+	list_road_to_emissions_cumulates = []  # this is used to create the list of colors
 
-	list_road_to_emissions_cumulates = []
 	for road, emission in dict_road_to_emissions.items():
+		list_roads.append(list(road))
 		list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
 
 	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates,
-										  cmap='summer', num_bins=3)
+										  cmap=color_map, num_bins=3)
 
-	fig, ax = ox.plot_graph_routes(road_network, tdf_with_emissions['road_link'],
-								   route_color=edge_cols,
-								   orig_dest_node_alpha=0)
 	if save_fig:
-		fig, ax = ox.plot_graph_routes(road_network, tdf_with_emissions['road_link'],
+		fig, ax = ox.plot_graph_routes(road_network,
+									   list_roads,
+									   bbox=bounding_box,
+									   fig_height=20,
 									   route_color=edge_cols,
+									   route_linewidth=2,
 									   orig_dest_node_alpha=0,
-									   show=False, save=True, file_format='pdf',
-									   filename=str('plot_emissions_ %s' % name_of_pollutant))
+									   show=False, save=True, file_format='png',
+									   filename=str('plot_emissions_%s' % name_of_pollutant))
+	else:
+		fig, ax = ox.plot_graph_routes(road_network,
+									   list_roads,
+									   bbox=bounding_box,
+									   # fig_height=20,
+									   route_color=edge_cols,
+									   route_linewidth=2,
+									   orig_dest_node_alpha=0)
 
 	return fig, ax
 
