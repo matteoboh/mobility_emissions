@@ -176,7 +176,6 @@ def map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant='C
 	emissions = list(tdf_with_emissions[name_of_pollutant])
 
 	dict_road_to_emissions = {}
-	road_links_filtered = []  # this will be the list of the road_links that are in the tdf AND in the road network.
 
 	for index in range(0, len(road_links)):
 
@@ -184,6 +183,35 @@ def map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant='C
 
 		if c_road in road_network.edges():
 			dict_road_to_emissions.setdefault(c_road, []).append(emissions[index])
-			road_links_filtered.append(road_links[index])
 
 	return dict_road_to_emissions
+
+
+def map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant='CO_2'):
+	"""Map each vehicle to its emissions.
+
+	Parameters
+	----------
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+
+	name_of_pollutant : string
+		the name of the pollutant. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
+
+	Returns
+	-------
+	Dictionary
+		a dictionary with 'uid' in the TrajDataFrame as keys and the list of emissions of that vehicle as value.
+		E.g. {(uid): [emission_0, ..., emission_n]}
+
+	"""
+
+	set_of_vehicles = set(tdf_with_emissions['uid'])
+
+	dict_vehicle_to_emissions = {}
+
+	for c_vehicle in set_of_vehicles:
+		c_emissions = np.array(tdf_with_emissions[tdf_with_emissions['uid'] == c_vehicle][name_of_pollutant])
+		dict_vehicle_to_emissions[c_vehicle] = c_emissions
+
+	return dict_vehicle_to_emissions
