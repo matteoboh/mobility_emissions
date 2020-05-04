@@ -1,5 +1,6 @@
 import osmnx as ox
 import pandas as pd
+from matplotlib import cm, colors
 import matplotlib.pyplot as plt
 import matplotlib.dates as dt
 from speed_and_acceleration import *
@@ -21,6 +22,19 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 
 	name_of_pollutant : string
 		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
+		Default is 'CO_2'.
+
+	color_map : str
+		name of the colormap to use.
+		Default is 'autumn_r'.
+
+	bounding_box : list
+		the bounding box as north, south, east, west, if one wants to plot the emissions only in a certain bbox of the network.
+		Default is None.
+
+	save_fig : bool
+		whether or not to save the figure.
+		Default is False.
 
 	Returns
 	-------
@@ -32,6 +46,8 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 		return
 	if 'road_link' not in tdf_with_emissions.columns:
 		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
+
+	emissions = list(tdf_with_emissions[name_of_pollutant])
 
 	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
 
@@ -46,24 +62,28 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates,
 										  cmap=color_map, num_bins=3)
 
+	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(emissions), vmax=max(emissions)))
+
+	fig, ax = ox.plot_graph_routes(road_network,
+								   list_roads,
+								   bbox=bounding_box,
+								   fig_height=20,
+								   route_color=edge_cols,
+								   route_linewidth=3,
+								   orig_dest_node_alpha=0,
+								   show=False, close=False)
+
+	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
+	cbar.set_label('%s (g)' % name_of_pollutant, size=25,
+				   labelpad=15)  # labelpad is for spacing between colorbar and its label
+	cbar.ax.tick_params(labelsize=20)
+
 	if save_fig:
-		fig, ax = ox.plot_graph_routes(road_network,
-									   list_roads,
-									   bbox=bounding_box,
-									   fig_height=20,
-									   route_color=edge_cols,
-									   route_linewidth=2,
-									   orig_dest_node_alpha=0,
-									   show=False, save=True, file_format='png',
-									   filename=str('plot_emissions_%s' % name_of_pollutant))
+		filename = str('plot_emissions_%s.png' % name_of_pollutant)
+		plt.savefig(filename, format='png', bbox_inches='tight')
+		plt.close(fig)
 	else:
-		fig, ax = ox.plot_graph_routes(road_network,
-									   list_roads,
-									   bbox=bounding_box,
-									   # fig_height=20,
-									   route_color=edge_cols,
-									   route_linewidth=2,
-									   orig_dest_node_alpha=0)
+		fig.show()
 
 	return fig, ax
 
