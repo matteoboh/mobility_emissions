@@ -12,8 +12,8 @@ PATH_TO_OUTPUT_FILE = './output_files/'
 PATH_TO_ROAD_NETWORKS = './input_files/road_nets/'  # folder where to save the road net as a .graphml file (if not wanted, write None)
 max_interval = 120  # see description of all_methods.filter_on_time_interval
 region = 'Rome'
-PATH_TO_TABLE_WITH_INFO_ON_VEHICLES = './util_files/modelli_auto.tar.xz'
-PATH_TO_TABLE_WITH_EMISSION_FUNCTIONS = './util_files/emission_functions.csv'
+PATH_TO_TABLE_WITH_INFO_ON_VEHICLES = 'util_files/modelli_auto.tar.xz'
+PATH_TO_TABLE_WITH_EMISSION_FUNCTIONS = 'util_files/emission_functions.csv'
 ######
 
 
