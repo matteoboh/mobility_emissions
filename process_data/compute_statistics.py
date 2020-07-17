@@ -212,6 +212,8 @@ if compute_correlations:
 
 if print_statistics:
 
+	num_vehicles = len(set(tdf['uid']))
+
 	for c_pollutant in list_of_pollutants:
 
 		print('----------------------------')
@@ -220,13 +222,13 @@ if print_statistics:
 
 		dict_vehicle_to_emissions = map_vehicle_to_emissions(tdf, name_of_pollutant=c_pollutant)
 
-		dict_vehicle_to_mean_emissions = {}
+		dict_vehicle_to_total_emissions = {}
 		emissions = []
 		max_sum = 0
 		min_sum = float('inf')
 		for c_uid, c_array in dict_vehicle_to_emissions.items():
 			c_sum = np.sum(c_array)
-			c_mean = c_sum/len(c_array)
+			dict_vehicle_to_total_emissions[c_uid] = c_sum
 			if c_sum > max_sum:
 				max_sum = c_sum
 				uid_max = c_uid
@@ -234,19 +236,21 @@ if print_statistics:
 				min_sum = c_sum
 				uid_min = c_uid
 			emissions.extend([c_sum])
-			dict_vehicle_to_mean_emissions[c_uid] = c_mean
-		print('Max value of emission: ', max_sum)
-		print('Min value of emission: ', min_sum)
+
 		overall_sum = np.sum(emissions)
 		print('Overall value of emission: ', overall_sum)
+		overall_mean = np.mean(emissions)
+		print('Mean value of emissions per vehicle: %s (the %s of total emissions)' %(overall_mean, overall_mean/overall_sum))
+		overall_median = np.median(emissions)
+		print('Median value of emissions per vehicle: ', overall_median)
 
 		rate_max = max_sum/overall_sum
 		rate_min = min_sum/overall_sum
-		print('User %s is responsible for %s of total emissions in the network.' %(uid_max, rate_max))
-		print('User %s is responsible for %s of total emissions in the network.' %(uid_min, rate_min))
+		print('User %s emitted the most (%s grams, the %s of total emissions in the network).' %(uid_max, max_sum, rate_max))
+		print('User %s emitted the least (%s grams, the %s of total emissions in the network).' %(uid_min, min_sum, rate_min))
 
-		mean_emissions = []
-		for c_val in dict_vehicle_to_mean_emissions.values():
-			mean_emissions.extend([c_val])
-		print('The mean value of emissions per vehicle is ', np.mean(mean_emissions))
-		print('The mean value of emissions per vehicle is the %s of total emissions' %(np.mean(mean_emissions)/overall_sum))
+		num_vehicles_20_percent = int(num_vehicles / 100 * 20)
+		sum_20_percent = 0
+		for c_uid, c_tot in sorted(dict_vehicle_to_total_emissions.items(), key=lambda item: item[1], reverse=True)[0:num_vehicles_20_percent]:
+			sum_20_percent += c_tot
+		print('20%% of the vehicles are responsible for the %s of total emissions.' %(sum_20_percent/overall_sum))
