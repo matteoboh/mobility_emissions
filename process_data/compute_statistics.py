@@ -15,9 +15,9 @@ list_of_pollutants = ['CO_2', 'NO_x', 'PM', 'VOC']
 
 # set to True/False w.r.t. what you want to obtain or not:
 plot_distributions = False
-fit_distributions = True   # in some cases, this can take time
+fit_distributions = False   # in some cases, this can take time
 compute_correlations = False
-print_statistics = False
+print_statistics = True
 ######
 
 ### Loading tdf
@@ -249,8 +249,8 @@ if print_statistics:
 		print('User %s emitted the most (%s grams, the %s of total emissions in the network).' %(uid_max, max_sum, rate_max))
 		print('User %s emitted the least (%s grams, the %s of total emissions in the network).' %(uid_min, min_sum, rate_min))
 
-		num_vehicles_20_percent = int(num_vehicles / 100 * 20)
-		sum_20_percent = 0
-		for c_uid, c_tot in sorted(dict_vehicle_to_total_emissions.items(), key=lambda item: item[1], reverse=True)[0:num_vehicles_20_percent]:
-			sum_20_percent += c_tot
-		print('20%% of the vehicles are responsible for the %s of total emissions.' %(sum_20_percent/overall_sum))
+		num_vehicles_10_percent = int(num_vehicles / 100 * 10)
+		sum_10_percent = 0
+		for c_uid, c_tot in sorted(dict_vehicle_to_total_emissions.items(), key=lambda item: item[1], reverse=True)[0:num_vehicles_10_percent]:
+			sum_10_percent += c_tot
+		print('10%% of the vehicles are responsible for the %s of total emissions.' %(sum_10_percent/overall_sum))
