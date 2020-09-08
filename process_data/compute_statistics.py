@@ -213,15 +213,16 @@ if compute_correlations:
 if print_statistics:
 
 	num_vehicles = len(set(tdf['uid']))
+	num_roads = len(set(tuple(i) for i in tdf['road_link']))  ## road links are lists of two elements each (non-hashable, so it is necessary to create a set of tuples instead)
 
 	for c_pollutant in list_of_pollutants:
 
-		print('----------------------------')
+		print('------------------------------')
 		print('Some stats for %s emissions:' %c_pollutant)
-		print('----------------------------')
+		print('------------------------------')
 
+		## stats distribution PER VEHICLE ##
 		dict_vehicle_to_emissions = map_vehicle_to_emissions(tdf, name_of_pollutant=c_pollutant)
-
 		dict_vehicle_to_total_emissions = {}
 		emissions = []
 		max_sum = 0
@@ -237,20 +238,59 @@ if print_statistics:
 				uid_min = c_uid
 			emissions.extend([c_sum])
 
+		print('----- stats per vehicle ------')
+
 		overall_sum = np.sum(emissions)
 		print('Overall value of emission: ', overall_sum)
 		overall_mean = np.mean(emissions)
 		print('Mean value of emissions per vehicle: %s (the %s of total emissions)' %(overall_mean, overall_mean/overall_sum))
 		overall_median = np.median(emissions)
 		print('Median value of emissions per vehicle: ', overall_median)
-
 		rate_max = max_sum/overall_sum
 		rate_min = min_sum/overall_sum
 		print('User %s emitted the most (%s grams, the %s of total emissions in the network).' %(uid_max, max_sum, rate_max))
 		print('User %s emitted the least (%s grams, the %s of total emissions in the network).' %(uid_min, min_sum, rate_min))
-
 		num_vehicles_10_percent = int(num_vehicles / 100 * 10)
 		sum_10_percent = 0
 		for c_uid, c_tot in sorted(dict_vehicle_to_total_emissions.items(), key=lambda item: item[1], reverse=True)[0:num_vehicles_10_percent]:
 			sum_10_percent += c_tot
 		print('10%% of the vehicles are responsible for the %s of total emissions.' %(sum_10_percent/overall_sum))
+
+		## stats distribution PER ROAD ##
+		dict_road_to_emissions = map_road_to_emissions(tdf, road_network, name_of_pollutant=c_pollutant)
+		dict_road_to_total_emissions = {}
+		emissions = []
+		max_sum = 0
+		min_sum = float('inf')
+		for c_rid, c_array in dict_road_to_emissions.items():
+			c_sum = np.sum(c_array)
+			dict_road_to_total_emissions[c_rid] = c_sum
+			if c_sum > max_sum:
+				max_sum = c_sum
+				rid_max = c_rid
+			if c_sum < min_sum:
+				min_sum = c_sum
+				rid_min = c_rid
+			emissions.extend([c_sum])
+
+		print('------- stats per road -------')
+
+		overall_sum = np.sum(emissions)
+		#print('Overall value of emission: ', overall_sum)
+		overall_mean = np.mean(emissions)
+		print('Mean value of emissions per road: %s (the %s of total emissions)' % (
+		overall_mean, overall_mean / overall_sum))
+		overall_median = np.median(emissions)
+		print('Median value of emissions per road: ', overall_median)
+		rate_max = max_sum / overall_sum
+		rate_min = min_sum / overall_sum
+		print('Road %s has the maximum quantity of emissions (%s grams, the %s of total emissions in the network).' % (
+		rid_max, max_sum, rate_max))
+		print('Road %s has the minimum quantity of emissions (%s grams, the %s of total emissions in the network).' % (
+		rid_min, min_sum, rate_min))
+		num_roads_10_percent = int(num_roads / 100 * 10)
+		sum_10_percent = 0
+		for c_rid, c_tot in sorted(dict_road_to_total_emissions.items(), key=lambda item: item[1], reverse=True)[
+							0:num_roads_10_percent]:
+			sum_10_percent += c_tot
+		print('10%% of the roads have the %s of total emissions.' % (sum_10_percent / overall_sum))
