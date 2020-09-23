@@ -14,6 +14,10 @@ bbox_subregion = None #[41.904815, 41.886851, 12.495463, 12.471533]
 pollutant_to_plot = 'CO_2' # one of: CO_2, NO_x, PM, VOC
 ######
 
+######
+normalization = None
+######
+
 ### Loading tdf
 print('Loading tdf...')
 #df = pd.read_csv(PATH_TO_INPUT_FILE+NAME_OF_INPUT_FILE, header=0)
@@ -21,7 +25,7 @@ print('Loading tdf...')
 tdf = skmob.read(PATH_TO_INPUT_FILE + NAME_OF_INPUT_FILE)
 
 
-
+### Loading road network
 print('Loading road network...')
 region_name = region.lower().replace(" ", "_")
 try:
@@ -43,12 +47,14 @@ except:
 #ox.save_graphml(road_network, filename=graphml_filename, folder=PATH_TO_ROAD_NETWORKS)
 
 ### Normalizing emissions s.t. we can compare different regions
-print('Normalizing emissions...')
-tdf = normalize_emissions(tdf, percentage=True)
+#print('Normalizing emissions...')
+#tdf = normalize_emissions(tdf, percentage=True)
+
 
 ### Plotting
 fig, ax = plot_road_network_with_emissions(tdf, road_network,
-										   name_of_pollutant = pollutant_to_plot,
-										   color_map ='autumn_r',
-										   bounding_box = bbox_subregion,
+										   normalization_factor = normalization,
+										   name_of_pollutant=pollutant_to_plot,
+										   color_map='autumn_r',
+										   bounding_box=bbox_subregion,
 										   save_fig=True)

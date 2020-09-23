@@ -395,13 +395,31 @@ def find_nearest_edges_in_network(road_network, tdf, return_tdf_with_new_col=Fal
 	return list_of_nearest_edges
 
 
-def generate_route_for_one_id(road_network, tdf, vehicle_id):
-	# This function computes a route (as a sequence of nodes in the given road network) starting from a
-	# trajectory dataframe for one specific vehicle ('uid').
-	# For each couple of points in the tdf, their nearest nodes in the network are located,
-	# and the shortest path between them is computed and added to the route.
-	# N.B.: the shortest path is defined as the sequence of roads in the road network that minimizes the
-	# sum of their lengths.
+def compute_route_of_one_vehicle(road_network, tdf, vehicle_id):
+	"""Computes the (shortest) route of a specific vehicle in the tdf.
+
+	This function computes a route (as a sequence of nodes in the given road network) starting from a
+	trajectory dataframe for one specific vehicle ('uid').
+	For each couple of points in the tdf, their nearest nodes in the network are located,
+	and the shortest path between them is computed and added to the route.
+	N.B.: the shortest path is defined as the sequence of roads in the road network that minimizes the
+	sum of their lengths.
+
+	Parameters
+	----------
+	road_network : networkx MultiDiGraph.
+
+	tdf : TrajDataFrame
+		the trajectories of the vehicles.
+
+	vehicle_id : str
+		ID of the vehicle.
+
+	Returns
+	-------
+	List
+		list of the nodes in the network describing the shortest route that connects all of them.
+	"""
 
 	tdf.sort_by_uid_and_datetime()
 	set_of_ids = set(tdf['uid'])
@@ -650,11 +668,114 @@ def map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant='CO_2'):
 
 	return dict_vehicle_to_emissions
 
+
+
 ###########################################################################################################
 ############################################ PLOTTING #####################################################
 ###########################################################################################################
 
-def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
+def plot_road_network_with_emissions(tdf_with_emissions, road_network, normalization_factor = None,
+									 name_of_pollutant='CO_2', color_map='autumn_r', bounding_box=None, save_fig=False):
+	"""Plot emissions
+
+	Plotting emissions of one of four pollutants using the module osmnx.plot_graph_routes.
+	Colors indicate intensity of cumulate emissions on each road.
+
+	Parameters
+	----------
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+
+	road_network : networkx MultiDiGraph
+
+	normalization_factor : str
+		the type of normalization wanted. It can be None, 'tot_emissions' or 'road_length'.
+
+	name_of_pollutant : string
+		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
+		Default is 'CO_2'.
+
+	color_map : str
+		name of the colormap to use.
+		Default is 'autumn_r'.
+
+	bounding_box : list
+		the bounding box as north, south, east, west, if one wants to plot the emissions only in a certain bbox of the network.
+		Default is None.
+
+	save_fig : bool
+		whether or not to save the figure.
+		Default is False.
+
+	Returns
+	-------
+	fig, ax
+	"""
+
+	if name_of_pollutant not in tdf_with_emissions.columns:
+		print('Emissions have not been previously computed: use compute_emissions first.')
+		return
+	if 'road_link' not in tdf_with_emissions.columns:
+		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
+
+	list_all_emissions = list(tdf_with_emissions[name_of_pollutant])
+
+	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
+
+	# extracting the list of roads and creating a list of colors to color them:
+	list_roads = []
+	list_road_to_emissions_cumulates = []  # this is used to create the list of colors
+	list_all_normalized_emissions = []  # this is used to set the colormap (with cm.ScalarMappable)
+
+	for road, emission in dict_road_to_emissions.items():
+		list_roads.append(list(road))
+		if normalization_factor == None:
+			list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
+			colorbar_label = r'$%s$ (g)' % name_of_pollutant
+		else:
+			if normalization_factor == 'road_length':
+				road_length = road_network.get_edge_data(road[0], road[1], key=0, default=80)['length']  # default set to 80 meters (~mean road length) --> can be improved TODO
+				normalized_emissions = sum(emission) / road_length #* 100  # quantity of emissions per 100 meters on that road
+				#colorbar_label = r'$%s$ (grams per 100 meters of road)' % name_of_pollutant
+				colorbar_label = r'$%s$ (grams per meter of road)' % name_of_pollutant
+			if normalization_factor == 'tot_emissions':
+				normalized_emissions = sum(emission) / sum(list_all_emissions) * 100  # emission percentage of the gross total
+				colorbar_label = '% ' + r'$%s$' % name_of_pollutant
+			list_all_normalized_emissions.extend([normalized_emissions])
+			list_road_to_emissions_cumulates.extend([list(road) + [normalized_emissions]])
+
+	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates, cmap=color_map, num_bins=3)
+
+	if normalization_factor != None:
+		list_all_emissions = list_all_normalized_emissions
+	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_emissions),
+																 vmax=max(list_all_emissions)))
+
+	fig, ax = ox.plot_graph_routes(road_network,
+								   list_roads,
+								   bbox=bounding_box,
+								   fig_height=20,
+								   route_color=edge_cols,
+								   route_linewidth=3,
+								   orig_dest_node_alpha=0,
+								   show=False, close=False)
+
+	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
+	cbar.set_label(colorbar_label, size=25,
+				   labelpad=15)  # labelpad is for spacing between colorbar and its label
+	cbar.ax.tick_params(labelsize=20)
+
+	if save_fig:
+		filename = str('plot_emissions_%s.png' % name_of_pollutant)
+		plt.savefig(filename, format='png', bbox_inches='tight')
+		plt.close(fig)
+	else:
+		fig.show()
+
+	return fig, ax
+
+
+def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
 									 color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
 
@@ -736,7 +857,7 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, name_of_p
 	return fig, ax
 
 
-def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
+def plot_road_network_with_emissions__OLD_OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
 										  color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
 
@@ -951,6 +1072,9 @@ def normalize_emissions(tdf_with_emissions, percentage=True, list_of_pollutants=
 	tdf_with_emissions : TrajDataFrame
 		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
 
+	percentage : bool
+		whether one wants the result as a percentage or not.
+
 	list_of_pollutants : list
 		the list of pollutants for which one wants to normalize.
 
@@ -969,3 +1093,33 @@ def normalize_emissions(tdf_with_emissions, percentage=True, list_of_pollutants=
 			tdf_with_normalized_emissions[c_pollutant] = tdf_with_emissions[c_pollutant] / tot_emissions
 	return tdf_with_normalized_emissions
 
+
+def compute_stats_for_network(road_network, area=None, circuity_dist='gc'):
+	"""Calculate basic descriptive metric and topological stats for a graph.
+
+	See basic_stats in osmnx.stats module for details.
+	For an unprojected lat-lng graph, tolerance and graph units should be in degrees, and circuity_dist should be ‘gc’.
+	For a projected graph, tolerance and graph units should be in meters (or similar) and circuity_dist should be ‘euclidean’.
+
+	Parameters
+	----------
+	road_network : networkx MultiDiGraph
+
+	area : numeric
+		the area covered by the street network, in square meters (typically land area);
+		if none, will skip all density-based metrics.
+
+	circuity_dist : str
+		 ‘gc’ or ‘euclidean’, how to calculate straight-line distances for circuity measurement;
+		 use former for lat-lng networks and latter for projected networks.
+
+	Returns
+	-------
+	Dictionary
+		dictionary of network stats (see osmnx documentation for details).
+	"""
+
+	dict_stats = ox.stats.basic_stats(road_network, area=area,
+									  clean_intersects=False, tolerance=15,
+									  circuity_dist=circuity_dist)
+	return dict_stats
