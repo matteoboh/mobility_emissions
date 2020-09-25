@@ -8,6 +8,7 @@ from skmob.measures.individual import *
 from matplotlib import colors, cm
 import matplotlib.pyplot as plt
 import matplotlib.dates as dt
+from PROCESS_DATA.stats_utils import *
 
 
 ###########################################################################################################
@@ -373,7 +374,7 @@ def find_nearest_edges_in_network(road_network, tdf, return_tdf_with_new_col=Fal
 	vec_of_longitudes = np.array(tdf['lng'])
 	vec_of_latitudes = np.array(tdf['lat'])
 
-	# for each (lat,lon), find the nearest node in the road network:
+	# for each (lat,lon), find the nearest edge in the road network:
 	array_of_nearest_edges = ox.get_nearest_edges(road_network, X=vec_of_longitudes, Y=vec_of_latitudes,
 												 method='balltree')
 	###
@@ -674,6 +675,46 @@ def map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant='CO_2'):
 ############################################ PLOTTING #####################################################
 ###########################################################################################################
 
+def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
+	## TODO description
+	# outputs [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...]
+
+	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
+		print('normalization_factor must be one of [None, tot_emissions, road_length]')
+		return
+
+	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
+	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
+	list_road_to_cumulate_emissions = []
+	for road, emission in dict_road_to_emissions.items():
+		if normalization_factor == None:
+			list_road_to_cumulate_emissions.extend([list(road) + [sum(emission)]])
+			label = r'$%s$ (g)' % name_of_pollutant
+		else:
+			if normalization_factor == 'road_length':
+				road_length = road_network.get_edge_data(road[0], road[1], key=0, default=80)['length']  # default set to 80 meters (~mean road length) --> can be improved TODO
+				normalized_emissions = sum(emission) / road_length #* 100  # quantity of emissions per meter on that road
+				#label = r'$%s$ (grams per 100 meters of road)' % name_of_pollutant
+				label = r'$%s$ (grams per meter of road)' % name_of_pollutant
+			if normalization_factor == 'tot_emissions':
+				normalized_emissions = sum(emission) / np.sum(array_all_emissions) * 100  # emission percentage of the gross total
+				label = '% ' + r'$%s$' % name_of_pollutant
+			list_road_to_cumulate_emissions.extend([list(road) + [normalized_emissions]])
+
+	return list_road_to_cumulate_emissions, label
+
+
+def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollutant):
+	## TODO description
+	dict_road_to_vehicle = map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant)
+	list_cumulate_emissions = []
+	for road, emission in dict_road_to_vehicle.items():
+		list_cumulate_emissions.extend([sum(emission)])
+		label = r'$%s$ (g)' % name_of_pollutant
+
+	return list_cumulate_emissions, label
+
+
 def plot_road_network_with_emissions(tdf_with_emissions, road_network, normalization_factor = None,
 									 name_of_pollutant='CO_2', color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
@@ -717,39 +758,18 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, normaliza
 		return
 	if 'road_link' not in tdf_with_emissions.columns:
 		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
+		return
+	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
+		print('normalization_factor must be one of [None, tot_emissions, road_length]')
+		return
 
-	list_all_emissions = list(tdf_with_emissions[name_of_pollutant])
+	list_road_to_cumulate_emissions, colorbar_label = create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor)
+	list_all_cumulate_emissions = [em for u,v,em in list_road_to_cumulate_emissions]
+	list_roads = [[u,v] for u,v,em in list_road_to_cumulate_emissions]
 
-	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
-
-	# extracting the list of roads and creating a list of colors to color them:
-	list_roads = []
-	list_road_to_emissions_cumulates = []  # this is used to create the list of colors
-	list_all_normalized_emissions = []  # this is used to set the colormap (with cm.ScalarMappable)
-
-	for road, emission in dict_road_to_emissions.items():
-		list_roads.append(list(road))
-		if normalization_factor == None:
-			list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
-			colorbar_label = r'$%s$ (g)' % name_of_pollutant
-		else:
-			if normalization_factor == 'road_length':
-				road_length = road_network.get_edge_data(road[0], road[1], key=0, default=80)['length']  # default set to 80 meters (~mean road length) --> can be improved TODO
-				normalized_emissions = sum(emission) / road_length #* 100  # quantity of emissions per 100 meters on that road
-				#colorbar_label = r'$%s$ (grams per 100 meters of road)' % name_of_pollutant
-				colorbar_label = r'$%s$ (grams per meter of road)' % name_of_pollutant
-			if normalization_factor == 'tot_emissions':
-				normalized_emissions = sum(emission) / sum(list_all_emissions) * 100  # emission percentage of the gross total
-				colorbar_label = '% ' + r'$%s$' % name_of_pollutant
-			list_all_normalized_emissions.extend([normalized_emissions])
-			list_road_to_emissions_cumulates.extend([list(road) + [normalized_emissions]])
-
-	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates, cmap=color_map, num_bins=3)
-
-	if normalization_factor != None:
-		list_all_emissions = list_all_normalized_emissions
-	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_emissions),
-																 vmax=max(list_all_emissions)))
+	edge_cols = get_edge_colors_from_list(list_road_to_cumulate_emissions, cmap=color_map, num_bins=3)
+	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_cumulate_emissions),
+																 vmax=max(list_all_cumulate_emissions)))
 
 	fig, ax = ox.plot_graph_routes(road_network,
 								   list_roads,
@@ -761,12 +781,11 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, normaliza
 								   show=False, close=False)
 
 	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
-	cbar.set_label(colorbar_label, size=25,
-				   labelpad=15)  # labelpad is for spacing between colorbar and its label
+	cbar.set_label(colorbar_label, size=25, labelpad=15)  # labelpad is for spacing between colorbar and its label
 	cbar.ax.tick_params(labelsize=20)
 
 	if save_fig:
-		filename = str('plot_emissions_%s.png' % name_of_pollutant)
+		filename = str('plot_emissions_%s__%s_normalized.png' %(name_of_pollutant, normalization_factor))
 		plt.savefig(filename, format='png', bbox_inches='tight')
 		plt.close(fig)
 	else:
@@ -775,8 +794,8 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, normaliza
 	return fig, ax
 
 
-def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
-									 color_map='autumn_r', bounding_box=None, save_fig=False):
+def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, normalization_factor = None,
+									 name_of_pollutant='CO_2', color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
 
 	Plotting emissions of one of four pollutants using the module osmnx.plot_graph_routes.
@@ -788,6 +807,9 @@ def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name
 		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
 
 	road_network : networkx MultiDiGraph
+
+	normalization_factor : str
+		the type of normalization wanted. It can be None, 'tot_emissions' or 'road_length'.
 
 	name_of_pollutant : string
 		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
@@ -815,23 +837,45 @@ def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name
 		return
 	if 'road_link' not in tdf_with_emissions.columns:
 		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
+		return
+	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
+		print('normalization_factor must be one of [None, tot_emissions, road_length]')
+		return
 
-	emissions = list(tdf_with_emissions[name_of_pollutant])
+	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
 
 	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
 
 	# extracting the list of roads and creating a list of colors to color them:
 	list_roads = []
 	list_road_to_emissions_cumulates = []  # this is used to create the list of colors
+	list_all_cumulate_emissions = []  # this is used to set the colormap (with cm.ScalarMappable)
+	list_all_cumulate_emissions_normalized = []  # this is used to set the colormap (with cm.ScalarMappable)
 
 	for road, emission in dict_road_to_emissions.items():
 		list_roads.append(list(road))
-		list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
+		if normalization_factor == None:
+			list_all_cumulate_emissions.extend([sum(emission)])
+			list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
+			colorbar_label = r'$%s$ (g)' % name_of_pollutant
+		else:
+			if normalization_factor == 'road_length':
+				road_length = road_network.get_edge_data(road[0], road[1], key=0, default=80)['length']  # default set to 80 meters (~mean road length) --> can be improved TODO
+				normalized_emissions = sum(emission) / road_length #* 100  # quantity of emissions per 100 meters on that road
+				#colorbar_label = r'$%s$ (grams per 100 meters of road)' % name_of_pollutant
+				colorbar_label = r'$%s$ (grams per meter of road)' % name_of_pollutant
+			if normalization_factor == 'tot_emissions':
+				normalized_emissions = sum(emission) / np.sum(array_all_emissions) * 100  # emission percentage of the gross total
+				colorbar_label = '% ' + r'$%s$' % name_of_pollutant
+			list_all_cumulate_emissions_normalized.extend([normalized_emissions])
+			list_road_to_emissions_cumulates.extend([list(road) + [normalized_emissions]])
 
-	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates,
-										  cmap=color_map, num_bins=3)
+	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates, cmap=color_map, num_bins=3)
 
-	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(emissions), vmax=max(emissions)))
+	if normalization_factor != None:
+		list_all_cumulate_emissions = list_all_cumulate_emissions_normalized
+	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_cumulate_emissions),
+																 vmax=max(list_all_cumulate_emissions)))
 
 	fig, ax = ox.plot_graph_routes(road_network,
 								   list_roads,
@@ -843,7 +887,7 @@ def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name
 								   show=False, close=False)
 
 	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
-	cbar.set_label('% '+'%s' % name_of_pollutant, size=25,
+	cbar.set_label(colorbar_label, size=25,
 				   labelpad=15)  # labelpad is for spacing between colorbar and its label
 	cbar.ax.tick_params(labelsize=20)
 
@@ -853,69 +897,6 @@ def plot_road_network_with_emissions__OLD(tdf_with_emissions, road_network, name
 		plt.close(fig)
 	else:
 		fig.show()
-
-	return fig, ax
-
-
-def plot_road_network_with_emissions__OLD_OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
-										  color_map='autumn_r', bounding_box=None, save_fig=False):
-	"""Plot emissions
-
-	Plotting emissions of one of four pollutants using the module osmnx.plot_graph_routes.
-	Colors indicate intensity of cumulate emissions on each road.
-
-	Parameters
-	----------
-	tdf_with_emissions : TrajDataFrame
-		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
-
-	road_network : networkx MultiDiGraph
-
-	name_of_pollutant : string
-		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
-
-	Returns
-	-------
-	fig, ax
-	"""
-
-	if name_of_pollutant not in tdf_with_emissions.columns:
-		print('Emissions have not been previously computed: use compute_emissions first.')
-		return
-	if 'road_link' not in tdf_with_emissions.columns:
-		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
-
-	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
-
-	# extracting the list of roads and creating a list of colors to color them:
-	list_roads = []
-	list_road_to_emissions_cumulates = []  # this is used to create the list of colors
-
-	for road, emission in dict_road_to_emissions.items():
-		list_roads.append(list(road))
-		list_road_to_emissions_cumulates.extend([list(road) + [sum(emission)]])
-
-	edge_cols = get_edge_colors_from_list(list_road_to_emissions_cumulates,
-										  cmap=color_map, num_bins=3)
-
-	if save_fig:
-		fig, ax = ox.plot_graph_routes(road_network,
-									   list_roads,
-									   bbox=bounding_box,
-									   fig_height=20,
-									   route_color=edge_cols,
-									   route_linewidth=2,
-									   orig_dest_node_alpha=0,
-									   show=False, save=True, file_format='png',
-									   filename=str('plot_emissions_%s' % name_of_pollutant))
-	else:
-		fig, ax = ox.plot_graph_routes(road_network,
-									   list_roads,
-									   bbox=bounding_box,
-									   # fig_height=20,
-									   route_color=edge_cols,
-									   route_linewidth=2,
-									   orig_dest_node_alpha=0)
 
 	return fig, ax
 
