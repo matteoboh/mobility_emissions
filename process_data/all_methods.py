@@ -8,7 +8,7 @@ from skmob.measures.individual import *
 from matplotlib import colors, cm
 import matplotlib.pyplot as plt
 import matplotlib.dates as dt
-from PROCESS_DATA.stats_utils import *
+from .stats_utils import *
 
 
 ###########################################################################################################

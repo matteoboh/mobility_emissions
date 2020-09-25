@@ -3,7 +3,7 @@ import numpy as np
 import osmnx as ox
 import matplotlib.pyplot as plt
 from .all_methods import *
-from PROCESS_DATA.stats_utils import *
+from .stats_utils import *
 
 ###### NOTE
 ## This module can be used to obtain various statistics on emissions / road network.

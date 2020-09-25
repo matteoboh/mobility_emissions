@@ -4,7 +4,7 @@ import numpy as np
 import osmnx as ox
 import time
 from .all_methods import *
-from PROCESS_DATA.stats_utils import *
+from .stats_utils import *
 
 ###### PARAMETERS
 PATH_TO_INPUT_FILE = './output_files/'
