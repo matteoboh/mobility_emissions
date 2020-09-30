@@ -8,7 +8,7 @@ from .emissions import *
 ###########################################################################################################
 
 def compute_corrs(tdf_with_emissions, list_of_pollutants=['CO_2', 'NO_x', 'PM', 'VOC']):
-	"""Compute correlation coefficients between emissions and (1) radius of gyration and (2) uncorrelated entropy.
+	"""Compute correlation coefficients between emissions and (1) radius of gyration, (2) uncorrelated entropy.
 
 	Parameters
 	----------
