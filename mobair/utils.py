@@ -34,16 +34,17 @@ def map_road_to_attribute(list_roads, road_network, attribute_name, default_valu
 									[u, v] in list_roads}
 	'''
 
+	set_roads = set(tuple(i) for i in list_roads)
 	road_network_undirected = ox.get_undirected(road_network)
 	dict_road_to_attribute = {}
-	for c_road in list_roads:
-		c_road_ = (c_road[0], c_road[1])
+	for c_road in set_roads:
+		#c_road_ = (c_road[0], c_road[1])
 		c_dict_attributes = road_network_undirected.get_edge_data(c_road[0], c_road[1], key=0, default=default_value)
 		if type(c_dict_attributes) == dict:
 			c_attribute = c_dict_attributes.get(attribute_name, default_value)
 		else:
 			c_attribute = default_value
-		dict_road_to_attribute[c_road_] = c_attribute
+		dict_road_to_attribute[c_road] = c_attribute
 
 	return dict_road_to_attribute
 

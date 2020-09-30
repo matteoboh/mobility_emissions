@@ -7,7 +7,7 @@ from .emissions import *
 ####################################### COMPUTE STATISTICS ################################################
 ###########################################################################################################
 
-def compute_corrs(tdf_with_emissions, list_of_pollutants=['CO_2', 'NO_x', 'PM', 'VOC']):
+def compute_corrs(tdf_with_emissions, set_of_pollutants={'CO_2', 'NO_x', 'PM', 'VOC'}):
 	"""Compute correlation coefficients between emissions and (1) radius of gyration, (2) uncorrelated entropy.
 
 	Parameters
@@ -15,8 +15,8 @@ def compute_corrs(tdf_with_emissions, list_of_pollutants=['CO_2', 'NO_x', 'PM', 
 	tdf_with_emissions : TrajDataFrame
 		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
 
-	list_of_pollutants : list
-		the list of pollutants for which one wants to compute the correlations.
+	set_of_pollutants : set
+		the set of pollutants for which one wants to compute the correlations.
 
 	Returns
 	-------
@@ -29,9 +29,9 @@ def compute_corrs(tdf_with_emissions, list_of_pollutants=['CO_2', 'NO_x', 'PM', 
 	print('Computing uncorrelated entropy...')
 	ue_df = uncorrelated_entropy(tdf_with_emissions, normalize=True)
 
-	corr_coefs = pd.DataFrame(columns=list_of_pollutants, index=['r_gyr', 'un_entropy'])
+	corr_coefs = pd.DataFrame(columns=set_of_pollutants, index=['r_gyr', 'un_entropy'])
 
-	for c_pollutant in list_of_pollutants:
+	for c_pollutant in set_of_pollutants:
 
 		dict_vehicle_to_emissions = map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant=c_pollutant)
 
