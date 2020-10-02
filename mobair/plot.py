@@ -24,6 +24,38 @@ def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, nam
 	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
 	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
 	list_road_to_cumulate_emissions = []
+	label = ''
+
+	if normalization_factor == None:
+		label = r'$%s$ (g)' % name_of_pollutant
+		list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em)] for road,em in dict_road_to_emissions.items()]
+	else:
+		if normalization_factor == 'road_length':
+			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
+			dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
+			dict_road_to_cum_em_norm = {road: sum(dict_road_to_emissions[road]) / dict_road_to_attribute[road + (0,)]
+										for road in dict_road_to_emissions.keys()}
+			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
+		if normalization_factor == 'tot_emissions':
+			label = '% ' + r'$%s$' % name_of_pollutant
+			sum_all_emissions = np.sum(array_all_emissions)
+			list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em) / sum_all_emissions * 100] for road, em in
+											   dict_road_to_emissions.items()]
+
+	return list_road_to_cumulate_emissions, label
+
+
+def create_list_road_to_cumulate_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
+	## TODO description
+	# outputs [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...]
+
+	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
+		print('normalization_factor must be one of [None, tot_emissions, road_length]')
+		return
+
+	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
+	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
+	list_road_to_cumulate_emissions = []
 	for road, emission in dict_road_to_emissions.items():
 		if normalization_factor == None:
 			list_road_to_cumulate_emissions.extend([list(road) + [sum(emission)]])
@@ -45,10 +77,8 @@ def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, nam
 def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollutant):
 	## TODO description
 	dict_road_to_vehicle = map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant)
-	list_cumulate_emissions = []
-	for road, emission in dict_road_to_vehicle.items():
-		list_cumulate_emissions.extend([sum(emission)])
-		label = r'$%s$ (g)' % name_of_pollutant
+	list_cumulate_emissions = [np.sum(em) for em in dict_road_to_vehicle.values()]
+	label = r'$%s$ (g)' % name_of_pollutant
 
 	return list_cumulate_emissions, label
 
@@ -216,7 +246,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name,
 	edge_cols = ox.plot.get_edge_colors_by_attr(road_network, attribute_name, cmap=color_map, num_bins=4,
 												equal_size=True)
 
-	dict_road_to_attribute = nx.get_edge_attributes(ox.get_undirected(road_network), attribute_name)
+	dict_road_to_attribute = nx.get_edge_attributes(road_network, attribute_name)
 
 	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(dict_road_to_attribute.values()),
 																 vmax=max(dict_road_to_attribute.values())))
