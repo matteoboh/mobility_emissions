@@ -1,1 +1,1 @@
-__all__ = ["emissions", "filtering", "mapmatching", "plot", "speed", "stats", "utils"]
+__all__ = ["emissions", "filtering", "mapmatching", "plot", "speed", "stats", "utils", "stats_utils"]
