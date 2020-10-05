@@ -176,14 +176,23 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_na
 		print('normalization_factor must be one of [None, tot_emissions, road_length]')
 		return
 
+	print('-- runtimes --')
+	import time
+	start_time = time.time()
 	list_road_to_cumulate_emissions, colorbar_label = create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor)
 	list_all_cumulate_emissions = [em for u,v,em in list_road_to_cumulate_emissions]
 	list_roads = [[u,v] for u,v,em in list_road_to_cumulate_emissions]
+	print("create lists: %s seconds" % (time.time() - start_time))
 
+	start_time = time.time()
 	edge_cols = get_edge_colors_from_list(list_road_to_cumulate_emissions, cmap=color_map, num_bins=3)
+	print("get_edge_colors_from_list: %s seconds" % (time.time() - start_time))
+	start_time = time.time()
 	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_cumulate_emissions),
 																 vmax=max(list_all_cumulate_emissions)))
+	print("ScalarMappable: %s seconds" % (time.time() - start_time))
 
+	start_time = time.time()
 	fig, ax = ox.plot_graph_routes(road_network,
 								   list_roads,
 								   bbox=bounding_box,
@@ -194,15 +203,18 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_na
 								   node_alpha = 0,
 								   orig_dest_size = 0,
 								   show=False, close=False)
+	print("plot_graph_routes: %s seconds" % (time.time() - start_time))
 
-	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
+	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
 	cbar.set_label(colorbar_label, size=22, labelpad=15)  # labelpad is for spacing between colorbar and its label
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
+		start_time = time.time()
 		filename = str('plot_emissions_%s__%s_normalized__%s.png' %(name_of_pollutant, normalization_factor, region_name.lower().replace(" ", "_")))
 		plt.savefig(filename, format='png', bbox_inches='tight')
 		plt.close(fig)
+		print("savefig: %s seconds" % (time.time() - start_time))
 	else:
 		fig.show()
 
@@ -260,7 +272,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name,
 							node_size=0,
 							show=False, close=False)
 
-	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max')
+	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
 	cbar.set_label(attribute_name.replace("_", " "), size=22,
 				   labelpad=15)  # labelpad is for spacing between colorbar and its label
 	cbar.ax.tick_params(labelsize=18)
