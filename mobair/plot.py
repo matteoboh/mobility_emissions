@@ -221,7 +221,130 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_na
 	return fig, ax
 
 
-def plot_road_network_with_attribute(road_network, attribute_name, region_name,
+def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_pollutant='CO_2'):
+	"""Add the value of emissions as a new attribute to the edges of the road network.
+
+	Parameters
+	----------
+	list_road_to_cumulate_emissions : list
+		list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...].
+
+	road_network : networkx MultiGraph
+
+	name_of_pollutant : string
+		the name of the pollutant to plot. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
+		Default is 'CO_2'.
+
+	Returns
+	-------
+	road network with the new attribute on its edges.
+	Note that for the edges with no value of emissions the attribute is set to None.
+
+	"""
+	dict_road_to_cumulate_emissions = {(u, v): em for [u, v, em] in list_road_to_cumulate_emissions}
+
+	for u, v, data in road_network.edges(keys=False, data=True):
+		try:
+			c_emissions = dict_road_to_cumulate_emissions[(u, v)]
+			data[name_of_pollutant] = c_emissions
+		except KeyError:
+			data[name_of_pollutant] = None
+
+	return road_network
+
+
+def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
+									 normalization_factor=None,
+									 fig_size=(20, 20), n_bins=4, color_map='autumn_r', bounding_box=None,
+									 save_fig=False):
+	"""Plot roads' attribute
+
+	Plotting the roads by attribute (e.g. road length or grade) using the module osmnx.plot_graph.
+	Colors indicate intensity of the attribute on each road.
+
+	Parameters
+	----------
+	road_network : networkx MultiGraph
+
+	attribute_name : string
+		the name of the attribute to plot. Must be one of the edges' attributes in the graph.
+
+	region_name : string
+		the name of the region. This is only used to save the figure.
+
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+		This is ignored if attribute_name not in {'CO_2', 'NO_x', 'PM', 'VOC'}.
+
+	normalization_factor : string
+		the type of normalization wanted. It can be one of {None, 'tot_emissions', 'road_length'}.
+
+	fig_size : tuple
+		size of the figure as (width, height).
+
+	n_bins : int
+		This is used by osmnx.plot.get_edge_colors_by_attr to get colors based on edge attribute values.
+		If None, linearly map a color to each value. Otherwise, assign values to this many bins then assign a color to each bin.
+
+	color_map : str
+		name of the colormap to use.
+		Default is 'autumn_r'.
+
+	bounding_box : list
+		the bounding box as north, south, east, west, if one wants to plot the emissions only in a certain bbox of the network.
+		Default is None.
+
+	save_fig : bool
+		whether or not to save the figure.
+		Default is False.
+
+	Returns
+	-------
+	fig, ax
+	"""
+
+	list_pollutants = ['CO_2', 'NO_x', 'PM', 'VOC']
+	if attribute_name in list_pollutants:
+		list_road_to_cumulate_emissions, colorbar_label = create_list_road_to_cumulate_emissions(
+			tdf_with_emissions, road_network, attribute_name, normalization_factor)
+		road_network = add_edge_emissions(list_road_to_cumulate_emissions, road_network, attribute_name)
+	else:
+		colorbar_label = attribute_name.replace("_", " ")
+
+	edge_cols = ox.plot.get_edge_colors_by_attr(road_network, attribute_name, cmap=color_map, num_bins=n_bins,
+												na_color='#999999', equal_size=False)
+
+	dict_road_to_attribute = nx.get_edge_attributes(road_network, attribute_name)
+
+	min_val = np.nanmin([x for x in dict_road_to_attribute.values() if x is not None])
+	max_val = np.nanmax([x for x in dict_road_to_attribute.values() if x is not None])
+	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min_val,
+																 vmax=max_val))
+
+	fig, ax = ox.plot_graph(road_network,
+							bbox=bounding_box,
+							figsize=fig_size,
+							edge_color=edge_cols,
+							edge_linewidth=2,
+							bgcolor='w',
+							node_size=0,
+							show=False, close=False)
+
+	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
+	cbar.set_label(colorbar_label, size=22,
+				   labelpad=15)  # labelpad is for spacing between colorbar and its label
+	cbar.ax.tick_params(labelsize=18)
+
+	if save_fig:
+		filename = str('plot_road_%s__%s.png' % (attribute_name, region_name.lower().replace(" ", "_")))
+		plt.savefig(filename, format='png', bbox_inches='tight')
+		plt.close(fig)
+	else:
+		fig.show()
+
+	return fig, ax
+
+def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_name,
 									 fig_size=(20, 20), color_map='coolwarm', bounding_box=None, save_fig=False):
 	"""Plot roads' attribute
 
