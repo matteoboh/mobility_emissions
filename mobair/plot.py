@@ -33,8 +33,9 @@ def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, nam
 		if normalization_factor == 'road_length':
 			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
 			dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
+			set_common_roads = set(dict_road_to_attribute.keys()) & set(dict_road_to_emissions.keys())
 			dict_road_to_cum_em_norm = {road: sum(dict_road_to_emissions[road]) / dict_road_to_attribute[road + (0,)]
-										for road in dict_road_to_emissions.keys()}
+										for road in set_common_roads}
 			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
 		if normalization_factor == 'tot_emissions':
 			label = '% ' + r'$%s$' % name_of_pollutant
