@@ -255,7 +255,8 @@ def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_po
 
 def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
 									 normalization_factor=None,
-									 fig_size=(20, 20), n_bins=4, color_map='autumn_r', bounding_box=None,
+									 fig_size=(20, 20), n_bins=4, equal_size=False,
+									 color_map='autumn_r', bounding_box=None,
 									 save_fig=False):
 	"""Plot roads' attribute
 
@@ -286,6 +287,10 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 		This is used by osmnx.plot.get_edge_colors_by_attr to get colors based on edge attribute values.
 		If None, linearly map a color to each value. Otherwise, assign values to this many bins then assign a color to each bin.
 
+	equal_size : bool
+		ignored if num_bins is None.
+		If True, bin into equal-sized quantiles (requires unique bin edges). if False, bin into equal-spaced bins.
+
 	color_map : str
 		name of the colormap to use.
 		Default is 'autumn_r'.
@@ -312,7 +317,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 		colorbar_label = attribute_name.replace("_", " ")
 
 	edge_cols = ox.plot.get_edge_colors_by_attr(road_network, attribute_name, cmap=color_map, num_bins=n_bins,
-												na_color='#999999', equal_size=False)
+												na_color='#999999', equal_size=equal_size)
 
 	dict_road_to_attribute = nx.get_edge_attributes(road_network, attribute_name)
 
@@ -336,7 +341,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
-		filename = str('plot_road_%s__%s.png' % (attribute_name, region_name.lower().replace(" ", "_")))
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, normalization_factor.lower(), region_name.lower().replace(" ", "_")))
 		plt.savefig(filename, format='png', bbox_inches='tight')
 		plt.close(fig)
 	else:
