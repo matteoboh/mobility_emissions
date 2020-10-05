@@ -341,7 +341,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
-		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, normalization_factor.lower(), region_name.lower().replace(" ", "_")))
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
 		plt.savefig(filename, format='png', bbox_inches='tight')
 		plt.close(fig)
 	else:
