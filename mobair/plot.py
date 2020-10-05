@@ -325,7 +325,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 							bbox=bounding_box,
 							figsize=fig_size,
 							edge_color=edge_cols,
-							edge_linewidth=2,
+							edge_linewidth=1.5,
 							bgcolor='w',
 							node_size=0,
 							show=False, close=False)
