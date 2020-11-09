@@ -76,3 +76,34 @@ def normalize_emissions(tdf_with_emissions, percentage=True, list_of_pollutants=
 		else:
 			tdf_with_normalized_emissions[c_pollutant] = tdf_with_emissions[c_pollutant] / tot_emissions
 	return tdf_with_normalized_emissions
+
+
+def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_pollutant='CO_2'):
+	"""Add the value of emissions as a new attribute to the edges of the road network.
+
+	Parameters
+	----------
+	list_road_to_cumulate_emissions : list
+		list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...].
+
+	road_network : networkx MultiGraph
+
+	name_of_pollutant : string
+		the name of the pollutant to plot. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
+		Default is 'CO_2'.
+
+	Returns
+	-------
+	road network with the new attribute on its edges.
+	Note that for the edges with no value of emissions the attribute is set to None.
+	"""
+	dict_road_to_cumulate_emissions = {(u, v): em for [u, v, em] in list_road_to_cumulate_emissions}
+
+	for u, v, data in road_network.edges(keys=False, data=True):
+		try:
+			c_emissions = dict_road_to_cumulate_emissions[(u, v)]
+			data[name_of_pollutant] = c_emissions
+		except KeyError:
+			data[name_of_pollutant] = None
+
+	return road_network

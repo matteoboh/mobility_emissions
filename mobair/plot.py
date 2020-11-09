@@ -7,13 +7,81 @@ from matplotlib import colors, cm
 import matplotlib.dates as dt
 from .speed import *
 from .emissions import *
+from .utils import *
 
 
 ###########################################################################################################
 ############################################ PLOTTING #####################################################
 ###########################################################################################################
 
-def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
+def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
+										   normalization_factor=None):
+	"""Outputs a list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...], needed for plotting.
+
+	Parameters:
+	----------
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+
+	road_network : networkx MultiDiGraph
+
+	name_of_pollutant : str
+		the name of the pollutant for which one wants the list. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
+		Default is 'CO_2'.
+
+	normalization_factor : str
+		whether one wants to normalise the emissions on each road or not.
+		Must be in {'None', 'tot_emissions', 'road_length'}.
+		If 'tot_emissions', the resulting cumulate_emissions can be interpreted as the share of the total emissions
+		of the network in that road.
+		If 'road_length', the resulting cumulate_emissions can be interpreted as the quantity of emissions per meter
+		on that road.
+
+	Returns:
+	-------
+	list
+		a list of each edge with the (eventually normalised) cumulate emissions estimated on that edge.
+	label
+		a label to use for plotting.
+	"""
+
+	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
+		print('normalization_factor must be one of [None, tot_emissions, road_length]')
+		return
+
+	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
+	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
+	list_road_to_cumulate_emissions = []
+	label = ''
+
+	if normalization_factor == None:
+		label = r'$%s$ (g)' % name_of_pollutant
+		list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em)] for road, em in
+										   dict_road_to_emissions.items()]
+	else:
+		if normalization_factor == 'road_length':
+			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
+			dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
+
+			# note: if there are parallel edges between two nodes, the following dict saves only the lowest value of 'length'
+			map__road_with_emissions__length = {
+				(u, v): min(road_network.get_edge_data(u, v).values(), key=lambda x: x['length'])['length'] for
+				(u, v), em in dict_road_to_emissions.items() if em != None}
+			#
+			dict_road_to_cum_em_norm = {
+				(u, v): sum(dict_road_to_emissions[(u, v)]) / map__road_with_emissions__length[(u, v)]
+				for u, v in map__road_with_emissions__length}
+			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
+		if normalization_factor == 'tot_emissions':
+			label = '% ' + r'$%s$' % name_of_pollutant
+			sum_all_emissions = np.sum(array_all_emissions)
+			list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em) / sum_all_emissions * 100] for road, em in
+											   dict_road_to_emissions.items()]
+
+	return list_road_to_cumulate_emissions, label
+
+
+def create_list_road_to_cumulate_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
 	## TODO description
 	# outputs [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...]
 
@@ -46,37 +114,25 @@ def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, nam
 	return list_road_to_cumulate_emissions, label
 
 
-def create_list_road_to_cumulate_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
-	## TODO description
-	# outputs [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...]
-
-	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
-		print('normalization_factor must be one of [None, tot_emissions, road_length]')
-		return
-
-	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
-	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
-	list_road_to_cumulate_emissions = []
-	for road, emission in dict_road_to_emissions.items():
-		if normalization_factor == None:
-			list_road_to_cumulate_emissions.extend([list(road) + [sum(emission)]])
-			label = r'$%s$ (g)' % name_of_pollutant
-		else:
-			if normalization_factor == 'road_length':
-				road_length = road_network.get_edge_data(road[0], road[1], key=0, default=80).get('length', 80)  # default set to 80 meters (~mean road length) --> can be improved TODO
-				normalized_emissions = sum(emission) / road_length #* 100  # quantity of emissions per meter on that road
-				#label = r'$%s$ (grams per 100 meters of road)' % name_of_pollutant
-				label = r'$%s$ (grams per meter of road)' % name_of_pollutant
-			if normalization_factor == 'tot_emissions':
-				normalized_emissions = sum(emission) / np.sum(array_all_emissions) * 100  # emission percentage of the gross total
-				label = '% ' + r'$%s$' % name_of_pollutant
-			list_road_to_cumulate_emissions.extend([list(road) + [normalized_emissions]])
-
-	return list_road_to_cumulate_emissions, label
-
-
 def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollutant):
-	## TODO description
+	"""Outputs the list of cumulate emissions for each vehicle.
+
+	Parameters
+	----------
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+
+	name_of_pollutant : str
+		the name of the pollutant for which one wants the list. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
+		Default is 'CO_2'.
+
+	Returns
+	-------
+	list
+		the list of cumulate emissions.
+	label
+		a label to use for plotting.
+	"""
 	dict_road_to_vehicle = map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant)
 	list_cumulate_emissions = [np.sum(em) for em in dict_road_to_vehicle.values()]
 	label = r'$%s$ (g)' % name_of_pollutant
@@ -123,6 +179,7 @@ def get_edge_colors_from_list(list_of_emissions_per_edge, num_bins=3, cmap='autu
 	return edge_colors
 
 
+### DEPRECATED: this method has been included in the more generic plot_road_network_with_attribute.
 def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_name, normalization_factor = None,
 									 name_of_pollutant='CO_2', fig_size = (20,20), color_map='autumn_r', bounding_box=None, save_fig=False):
 	"""Plot emissions
@@ -220,38 +277,6 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_na
 		fig.show()
 
 	return fig, ax
-
-
-def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_pollutant='CO_2'):
-	"""Add the value of emissions as a new attribute to the edges of the road network.
-
-	Parameters
-	----------
-	list_road_to_cumulate_emissions : list
-		list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...].
-
-	road_network : networkx MultiGraph
-
-	name_of_pollutant : string
-		the name of the pollutant to plot. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
-		Default is 'CO_2'.
-
-	Returns
-	-------
-	road network with the new attribute on its edges.
-	Note that for the edges with no value of emissions the attribute is set to None.
-
-	"""
-	dict_road_to_cumulate_emissions = {(u, v): em for [u, v, em] in list_road_to_cumulate_emissions}
-
-	for u, v, data in road_network.edges(keys=False, data=True):
-		try:
-			c_emissions = dict_road_to_cumulate_emissions[(u, v)]
-			data[name_of_pollutant] = c_emissions
-		except KeyError:
-			data[name_of_pollutant] = None
-
-	return road_network
 
 
 def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
