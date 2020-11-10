@@ -362,7 +362,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 							show=False, close=False)
 
 	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
-	cbar.set_label(colorbar_label, size=22,
+	cbar.set_label(colorbar_label, size=20,
 				   labelpad=15)  # labelpad is for spacing between colorbar and its label
 	cbar.ax.tick_params(labelsize=18)
 
