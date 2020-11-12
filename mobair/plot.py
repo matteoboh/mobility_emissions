@@ -367,8 +367,10 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
-		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
-		plt.savefig(filename, format='png', bbox_inches='tight')
+		filename = str('plot_road_%s__%s_normalised__%s' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
+		fig.savefig(filename, format='png', bbox_inches='tight',
+					#facecolor='white'  # use if want the cbar to be on white (and not transparent) background
+					)
 		plt.close(fig)
 	else:
 		fig.show()
@@ -434,6 +436,63 @@ def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_n
 	if save_fig:
 		filename = str('plot_road_%s__%s.png' % (attribute_name, region_name.lower().replace(" ", "_")))
 		plt.savefig(filename, format='png', bbox_inches='tight')
+		plt.close(fig)
+	else:
+		fig.show()
+
+	return fig, ax
+
+
+def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, save_fig=False):
+	"""Plots a correlation matrix with matplotlib.pyplot.imshow.
+
+	Parameters
+	----------
+	corr_matrix : numpy.ndarray
+		the correlation matrix which one wants to plot.
+
+	list_ordered_feature_names : list
+		the list of the features for which the correlation has been computed.
+		They should be ordered as they appear in the correlation matrix.
+
+	region_name : str
+		the name of the region to which the features belong.
+
+	save_fig : bool
+		whether or not to save the figure.
+		Default is False.
+
+	Returns
+	-------
+	fig, ax
+	"""
+
+	fig, ax = plt.subplots()
+	im = ax.imshow(corr_matrix)
+
+	im.set_clim(-1, 1)
+
+	ax.set_xticks(np.arange(len(list_ordered_feature_names)))
+	ax.set_yticks(np.arange(len(list_ordered_feature_names)))
+	ax.set_xticklabels(list_ordered_feature_names)
+	ax.set_yticklabels(list_ordered_feature_names)
+
+	plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+			 rotation_mode="anchor")
+
+	# Loop over data dimensions and create text annotations.
+	for i in range(len(list_ordered_feature_names)):
+		for j in range(len(list_ordered_feature_names)):
+			text = ax.text(j, i, corr_matrix[i, j].round(decimals=2),
+						   ha="center", va="center", color="w", weight='bold')
+
+	cbar = fig.colorbar(im, ax=ax, format='% .2f')
+	cbar.set_label(r'Pearson correlation coefficient ($\rho$)', size=13,
+				   labelpad=13)  # labelpad is for spacing between colorbar and its label
+
+	if save_fig:
+		filename = str('plot_corr_matrix__%s' %region_name.lower().replace(" ", "_"))
+		plt.savefig(filename, format='png', bbox_inches='tight', facecolor='white')
 		plt.close(fig)
 	else:
 		fig.show()

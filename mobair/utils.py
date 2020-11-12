@@ -1,5 +1,6 @@
 import numpy as np
 import osmnx as ox
+import networkx as nx
 
 ###########################################################################################################
 ############################################# UTILS #######################################################
@@ -94,8 +95,9 @@ def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_po
 
 	Returns
 	-------
-	road network with the new attribute on its edges.
-	Note that for the edges with no value of emissions the attribute is set to None.
+	networkx MultiDiGraph
+		road network with the new attribute on its edges.
+		Note that for the edges with no value of emissions the attribute is set to None.
 	"""
 	dict_road_to_cumulate_emissions = {(u, v): em for [u, v, em] in list_road_to_cumulate_emissions}
 
@@ -105,5 +107,54 @@ def add_edge_emissions(list_road_to_cumulate_emissions, road_network, name_of_po
 			data[name_of_pollutant] = c_emissions
 		except KeyError:
 			data[name_of_pollutant] = None
+
+	return road_network
+
+
+def add_edge_centrality_measures(road_network):
+	"""Computes and add centrality measures as new attributes to the edges of the road network.
+	The centrality measures are: degree, closeness centrality, betweenness centrality.
+	Note that the first two are computed using the line version of the graph, while for the latter there is a networkx
+	function that directly computes it for the edges of the original graph.
+
+	Parameters
+	----------
+	road_network : networkx MultiDiGraph
+
+	Returns
+	-------
+	networkx MultiDiGraph
+		the road network with the new attributes on its edges.
+	"""
+
+	# line version of the network:
+	road_network_line = nx.line_graph(road_network)
+
+	### Closeness centrality:
+	# 1. compute closeness centrality of the edges in the line version of the network
+	edge_ccentrality = nx.closeness_centrality(road_network_line)
+	# 2. add it as new attribute on the edges of the original network
+	nx.set_edge_attributes(road_network, edge_ccentrality, 'closeness_centrality')
+
+	### Degree centrality:
+	# 1. compute degree of the edges in the line version of the network
+	edge_degree = nx.degree_centrality(road_network_line)
+	# 2. add it as new attribute on the edges of the original network
+	nx.set_edge_attributes(road_network, edge_degree, 'degree_centrality')
+	'''
+	### Clustering coefficient:
+	# 1. compute clustering coefficient of the edges in the line version of the network
+	edge_clustering = nx.clustering(road_network_line)
+	# 2. add it as new attribute on the edges of the original network
+	nx.set_edge_attributes(road_network, edge_clustering, 'clustering_coeff')
+	'''
+	### Betweenness centrality:
+	# 1. compute betweenness centrality (directly on the original network, as there is a function for doing that)
+	edge_bcentrality = nx.edge_betweenness_centrality(road_network, normalized=True, weight='length')
+	# 1.1 correct the resulting dictionary's keys
+	edge_bcentrality__corrected = {key: (edge_bcentrality[key[:-1]] if key[:-1] in edge_bcentrality.keys() else None)
+								   for key in road_network.edges(keys=True)}
+	# 2. add it as new attribute on the edges of the original network
+	nx.set_edge_attributes(road_network, edge_bcentrality__corrected, 'betweenness_centrality')
 
 	return road_network

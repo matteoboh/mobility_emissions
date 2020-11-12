@@ -1,5 +1,6 @@
 import pandas as pd
 import osmnx as ox
+import networkx as nx
 from skmob.measures.individual import *
 from .emissions import *
 
@@ -83,3 +84,39 @@ def compute_stats_for_network(road_network, area=None, circuity_dist='gc'):
 									  clean_intersects=False, tolerance=15,
 									  circuity_dist=circuity_dist)
 	return dict_stats
+
+
+def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribute_names):
+	"""Compute correlation coefficients between the edges' attributes of a road network
+	(for which a value of emissions has previously been estimated).
+
+	Parameters
+	----------
+	road_network : networkx MultiDiGraph
+
+	pollutant : str
+		name of the pollutant for which one wants the correlations with the other attributes.
+
+	list_attribute_names : list
+		the list with the names of the edges' attributes.
+		It must also comprehend the pollutant.
+
+	Returns
+	-------
+	numpy.ndarray
+		the correlation matrix.
+	"""
+
+	map__edge_original_network__pollutant = nx.get_edge_attributes(road_network, pollutant)
+
+	# (if there are parallel edges between two nodes, select the one with the lowest value of 'length')
+	list_all_dicts_of_edges_attributes_where_pollutant_isnot_None = [
+		min(road_network.get_edge_data(u, v).values(), key=lambda x: x['length']) for (u, v, key), poll in
+		map__edge_original_network__pollutant.items() if poll != None]
+
+	list_all_attributes = []
+	for c_attr in list_attribute_names:
+		c_list_attr = [edge_attr[c_attr] for edge_attr in list_all_dicts_of_edges_attributes_where_pollutant_isnot_None]
+		list_all_attributes.append(c_list_attr)
+
+	return np.corrcoef(np.array(list_all_attributes))
