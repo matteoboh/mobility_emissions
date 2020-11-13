@@ -116,7 +116,7 @@ def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribu
 
 	list_all_attributes = []
 	for c_attr in list_attribute_names:
-		c_list_attr = [edge_attr[c_attr] for edge_attr in list_all_dicts_of_edges_attributes_where_pollutant_isnot_None]
+		c_list_attr = [np.float(edge_attr[c_attr]) for edge_attr in list_all_dicts_of_edges_attributes_where_pollutant_isnot_None]
 		list_all_attributes.append(c_list_attr)
 
 	return np.corrcoef(np.array(list_all_attributes))
