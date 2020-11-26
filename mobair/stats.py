@@ -1,6 +1,7 @@
 import pandas as pd
 import osmnx as ox
 import networkx as nx
+import matplotlib.pyplot as plt
 from skmob.measures.individual import *
 from .emissions import *
 
@@ -86,7 +87,7 @@ def compute_stats_for_network(road_network, area=None, circuity_dist='gc'):
 	return dict_stats
 
 
-def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribute_names):
+def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribute_names, plot_scatter=False):
 	"""Compute correlation coefficients between the edges' attributes of a road network
 	(for which a value of emissions has previously been estimated).
 
@@ -107,16 +108,22 @@ def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribu
 		the correlation matrix.
 	"""
 
-	map__edge_original_network__pollutant = nx.get_edge_attributes(road_network, pollutant)
+	map__edge__pollutant = nx.get_edge_attributes(road_network, pollutant)
 
-	# (if there are parallel edges between two nodes, select the one with the lowest value of 'length')
-	list_all_dicts_of_edges_attributes_where_pollutant_isnot_None = [
-		min(road_network.get_edge_data(u, v).values(), key=lambda x: x['length']) for (u, v, key), poll in
-		map__edge_original_network__pollutant.items() if poll != None]
+	list_all_dicts_of_edges_attributes_where_pollutant_isnot_None = [road_network.get_edge_data(u, v, key) for
+																	 (u, v, key), poll in map__edge__pollutant.items()
+																	 if poll != None]
 
 	list_all_attributes = []
 	for c_attr in list_attribute_names:
-		c_list_attr = [np.float(edge_attr[c_attr]) for edge_attr in list_all_dicts_of_edges_attributes_where_pollutant_isnot_None]
+		c_list_attr = [edge_attr[c_attr] for edge_attr in list_all_dicts_of_edges_attributes_where_pollutant_isnot_None]
 		list_all_attributes.append(c_list_attr)
+
+	if plot_scatter == True:
+		df = pd.DataFrame(list_all_attributes).T
+		df.columns = list_attribute_names
+
+		pd.plotting.scatter_matrix(df, figsize=(10, 10))
+		plt.savefig('scatter_matrix__%s.png' % pollutant)
 
 	return np.corrcoef(np.array(list_all_attributes))
