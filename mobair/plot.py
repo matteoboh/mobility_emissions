@@ -331,7 +331,7 @@ def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_n
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
-		filename = str('plot_road_%s__%s_normalised__%s' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
 		fig.savefig(filename, format='png', bbox_inches='tight',
 					#facecolor='white'  # use if want the cbar to be on white (and not transparent) background
 					)
@@ -390,7 +390,7 @@ def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, save_
 				   labelpad=13)  # labelpad is for spacing between colorbar and its label
 
 	if save_fig:
-		filename = str('plot_corr_matrix__%s' %region_name.lower().replace(" ", "_"))
+		filename = str('plot_corr_matrix__%s.png' %region_name.lower().replace(" ", "_"))
 		plt.savefig(filename, format='png', bbox_inches='tight', facecolor='white')
 		plt.close(fig)
 	else:
