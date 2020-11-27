@@ -230,7 +230,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 
 	# (eventually) saving the figure
 	if save_fig:
-		filename = str('plot_road_%s__%s_normalised__%s' % (
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (
 		attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
 		fig.savefig(filename, format='png', bbox_inches='tight',
 					# facecolor='white'  # use if want the cbar to be on white (and not transparent) background
