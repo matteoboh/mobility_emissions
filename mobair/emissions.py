@@ -149,7 +149,45 @@ def compute_emission_for_NOx_and_VOC(df_with_emission_functions, speed_value, ac
 	return ER
 
 
-def map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2'):
+def map_road_to_emissions(tdf_with_emissions, name_of_pollutant='CO_2'):
+	"""Map each road to its emissions.
+
+	Parameters
+	----------
+	tdf_with_emissions : TrajDataFrame
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+
+	road_network : networkx MultiDiGraph
+
+	name_of_pollutant : string
+		the name of the pollutant. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
+
+	Returns
+	-------
+	Dictionary
+		a dictionary with road links as keys and the list of emissions on that road as value.
+		E.g. {(u, v, key): [emission_0, ..., emission_n]}
+
+	"""
+
+	if name_of_pollutant not in tdf_with_emissions.columns:
+		print('Emissions have not been previously computed: use compute_emissions first.')
+		return
+	if 'road_link' not in tdf_with_emissions.columns:
+		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
+
+	road_links = list(tdf_with_emissions['road_link'])
+	emissions = list(tdf_with_emissions[name_of_pollutant])
+
+	dict_road_to_emissions = {}
+	for index in range(0, len(road_links)):
+		c_road = (road_links[index][0], road_links[index][1], road_links[index][2])
+		dict_road_to_emissions.setdefault(c_road, []).append(emissions[index])
+
+	return dict_road_to_emissions
+
+
+def map_road_to_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2'):
 	"""Map each road to its emissions.
 
 	Parameters

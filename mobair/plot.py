@@ -4,6 +4,7 @@ import osmnx as ox
 import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib import colors, cm
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib.dates as dt
 from .speed import *
 from .emissions import *
@@ -14,132 +15,55 @@ from .utils import *
 ############################################ PLOTTING #####################################################
 ###########################################################################################################
 
-def create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
-										   normalization_factor=None):
-	"""Outputs a list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...], needed for plotting.
-
-	Parameters:
-	----------
-	tdf_with_emissions : TrajDataFrame
-		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
-
-	road_network : networkx MultiDiGraph
-
-	name_of_pollutant : str
-		the name of the pollutant for which one wants the list. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
-		Default is 'CO_2'.
-
-	normalization_factor : str
-		whether one wants to normalise the emissions on each road or not.
-		Must be in {'None', 'tot_emissions', 'road_length'}.
-		If 'tot_emissions', the resulting cumulate_emissions can be interpreted as the share of the total emissions
-		of the network in that road.
-		If 'road_length', the resulting cumulate_emissions can be interpreted as the quantity of emissions per meter
-		on that road.
-
-	Returns:
-	-------
-	list
-		a list of each edge with the (eventually normalised) cumulate emissions estimated on that edge.
-	label
-		a label to use for plotting.
-	"""
-
-	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
-		print('normalization_factor must be one of [None, tot_emissions, road_length]')
-		return
-
-	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
-	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
-	list_road_to_cumulate_emissions = []
-	label = ''
-
-	if normalization_factor == None:
-		label = r'$%s$ (g)' % name_of_pollutant
-		list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em)] for road, em in
-										   dict_road_to_emissions.items()]
-	else:
-		if normalization_factor == 'road_length':
-			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
-			dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
-
-			# note: if there are parallel edges between two nodes, the following dict saves only the lowest value of 'length'
-			map__road_with_emissions__length = {
-				(u, v): min(road_network.get_edge_data(u, v).values(), key=lambda x: x['length'])['length'] for
-				(u, v), em in dict_road_to_emissions.items() if em != None}
-			#
-			dict_road_to_cum_em_norm = {
-				(u, v): sum(dict_road_to_emissions[(u, v)]) / map__road_with_emissions__length[(u, v)]
-				for u, v in map__road_with_emissions__length}
-			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
-		if normalization_factor == 'tot_emissions':
-			label = '% ' + r'$%s$' % name_of_pollutant
-			sum_all_emissions = np.sum(array_all_emissions)
-			list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em) / sum_all_emissions * 100] for road, em in
-											   dict_road_to_emissions.items()]
-
-	return list_road_to_cumulate_emissions, label
-
-
-def create_list_road_to_cumulate_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor=None):
-	## TODO description
-	# outputs [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...]
-
-	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
-		print('normalization_factor must be one of [None, tot_emissions, road_length]')
-		return
-
-	dict_road_to_emissions = map_road_to_emissions(tdf_with_emissions, road_network, name_of_pollutant)
-	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
-	list_road_to_cumulate_emissions = []
-	label = ''
-
-	if normalization_factor == None:
-		label = r'$%s$ (g)' % name_of_pollutant
-		list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em)] for road,em in dict_road_to_emissions.items()]
-	else:
-		if normalization_factor == 'road_length':
-			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
-			dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
-			set_common_roads = set(dict_road_to_attribute.keys()) & set(dict_road_to_emissions.keys())
-			dict_road_to_cum_em_norm = {road: sum(dict_road_to_emissions[road]) / dict_road_to_attribute[road + (0,)]
-										for road in set_common_roads}
-			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
-		if normalization_factor == 'tot_emissions':
-			label = '% ' + r'$%s$' % name_of_pollutant
-			sum_all_emissions = np.sum(array_all_emissions)
-			list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em) / sum_all_emissions * 100] for road, em in
-											   dict_road_to_emissions.items()]
-
-	return list_road_to_cumulate_emissions, label
-
-
-def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollutant):
-	"""Outputs the list of cumulate emissions for each vehicle.
+def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, cmap='autumn_r', na_color='#999999'):
+	"""Get colors based on edge attribute values.
 
 	Parameters
 	----------
-	tdf_with_emissions : TrajDataFrame
-		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+	road_network : networkx.MultiDiGraph
 
-	name_of_pollutant : str
-		the name of the pollutant for which one wants the list. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
-		Default is 'CO_2'.
+	attribute_name : string
+		name of a numerical edge attribute.
+
+	log_norm : bool
+		set the normalizer to use in cm.ScalarMappable.
+		if True, uses colors.LogNorm, else uses colors.Normalize.
+
+	cmap : string
+		name of a matplotlib colormap.
+
+	na_color : string
+		what color to assign edges with missing attr values.
 
 	Returns
 	-------
-	list
-		the list of cumulate emissions.
-	label
-		a label to use for plotting.
+	color_series : pandas.Series
+		series labels are edge IDs (u, v, k) and values are colors.
+
+	sm : cm.ScalarMappable object
+		this is useful for creating a colorbar for the plot.
+
+	References
+	----------
+	slightly inspired by get_edge_colors_by_attr in the osmnx.plot module.
 	"""
-	dict_road_to_vehicle = map_vehicle_to_emissions(tdf_with_emissions, name_of_pollutant)
-	list_cumulate_emissions = [np.sum(em) for em in dict_road_to_vehicle.values()]
-	label = r'$%s$ (g)' % name_of_pollutant
+	vals = pd.Series(nx.get_edge_attributes(road_network, attribute_name))
 
-	return list_cumulate_emissions, label
+	min_val = vals.dropna().min()
+	max_val = vals.dropna().max()
 
+	if log_norm:
+		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=0.03, base=10)
+	else:
+		norm = colors.Normalize(vmin=min_val, vmax=max_val)
 
+	sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+	color_series = vals.map(sm.to_rgba)
+	color_series.loc[pd.isnull(vals)] = na_color
+
+	return color_series, sm
+
+### DEPRECATED ###
 def get_edge_colors_from_list(list_of_emissions_per_edge, num_bins=3, cmap='autumn_r', start=0, stop=1, na_color='none'):
 	"""
 	Get a list of edge colors by binning some continuous-variable attribute into
@@ -179,33 +103,44 @@ def get_edge_colors_from_list(list_of_emissions_per_edge, num_bins=3, cmap='autu
 	return edge_colors
 
 
-### DEPRECATED: this method has been included in the more generic plot_road_network_with_attribute.
-def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_name, normalization_factor = None,
-									 name_of_pollutant='CO_2', fig_size = (20,20), color_map='autumn_r', bounding_box=None, save_fig=False):
-	"""Plot emissions
+def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
+									 normalization_factor=None,
+									 fig_size=(20, 20), n_bins=30, log_normalise=False,
+									 color_map='autumn_r', bounding_box=None,
+									 save_fig=False):
+	"""Plot roads' attribute
 
-	Plotting emissions of one of four pollutants using the module osmnx.plot_graph_routes.
-	Colors indicate intensity of cumulate emissions on each road.
+	Plotting the roads by attribute (e.g. road length or grade) using the module osmnx.plot_graph.
+	Colors indicate intensity of the attribute on each road.
 
 	Parameters
 	----------
+	road_network : networkx MultiGraph
+
+	attribute_name : string
+		the name of the attribute to plot. Must be one of the edges' attributes in the graph.
+
+	region_name : string
+		the name of the region. This is only used to save the figure.
+
 	tdf_with_emissions : TrajDataFrame
 		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+		This is ignored if attribute_name not in {'CO_2', 'NO_x', 'PM', 'VOC'}.
 
-	road_network : networkx MultiDiGraph
-
-	region_name : str
-		the name of the region of the road network.
-
-	normalization_factor : str
-		the type of normalization wanted. It can be None, 'tot_emissions' or 'road_length'.
-
-	name_of_pollutant : string
-		the name of the pollutant to plot. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
-		Default is 'CO_2'.
+	normalization_factor : string
+		the type of normalization wanted. It can be one of {None, 'tot_emissions', 'road_length'}.
 
 	fig_size : tuple
 		size of the figure as (width, height).
+
+	n_bins : int
+		This is used by osmnx.plot.get_edge_colors_by_attr to get colors based on edge attribute values.
+		If None, linearly map a color to each value. Otherwise, assign values to this many bins then assign a color to each bin.
+
+	log_normalise : bool
+		If True, matplotlib.colors.SymLogNorm is used for log-normalisation of the data, and shows the histogram on log scale.
+		Otherwise, matplotlib.colors.Normalize is used.
+		The logarithmic scale is suggested when the attribute to plot is one of the pollutant.
 
 	color_map : str
 		name of the colormap to use.
@@ -224,62 +159,92 @@ def plot_road_network_with_emissions(tdf_with_emissions, road_network, region_na
 	fig, ax
 	"""
 
-	if name_of_pollutant not in tdf_with_emissions.columns:
-		print('Emissions have not been previously computed: use compute_emissions first.')
-		return
-	if 'road_link' not in tdf_with_emissions.columns:
-		print('Points of TrajDataFrame have not been previously map-matched: use find_nearest_edges_in_network first.')
-		return
-	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
-		print('normalization_factor must be one of [None, tot_emissions, road_length]')
-		return
+	list_pollutants = ['CO_2', 'NO_x', 'PM', 'VOC']
+	if attribute_name in list_pollutants:
+		# if the attribute to plot is a pollutant, then it should be first added as an edges' attribute:
+		map__road__cum_em, attribute_label = map_road_to_cumulate_emissions(tdf_with_emissions, road_network,
+																				  attribute_name, normalization_factor)
+		road_network = add_edge_emissions(map__road__cum_em, road_network, attribute_name)
+	else:
+		attribute_label = attribute_name.replace("_", " ").capitalize()
 
-	print('-- runtimes --')
-	import time
-	start_time = time.time()
-	list_road_to_cumulate_emissions, colorbar_label = create_list_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant, normalization_factor)
-	list_all_cumulate_emissions = [em for u,v,em in list_road_to_cumulate_emissions]
-	list_roads = [[u,v] for u,v,em in list_road_to_cumulate_emissions]
-	print("create lists: %s seconds" % (time.time() - start_time))
+	# size of labels and ticks for hist and colorbar
+	hist__label_size = fig_size[0]
+	cbar__label_size = fig_size[0] + 5
+	ticklabel_size = cbar__label_size - 2
 
-	start_time = time.time()
-	edge_cols = get_edge_colors_from_list(list_road_to_cumulate_emissions, cmap=color_map, num_bins=3)
-	print("get_edge_colors_from_list: %s seconds" % (time.time() - start_time))
-	start_time = time.time()
-	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(list_all_cumulate_emissions),
-																 vmax=max(list_all_cumulate_emissions)))
-	print("ScalarMappable: %s seconds" % (time.time() - start_time))
+	# colors and ScalarMappable
+	color_series, sm = get_edge_colors_by_attribute(road_network, attribute_name, log_norm=log_normalise,
+													cmap=color_map, na_color='#999999')
 
-	start_time = time.time()
-	fig, ax = ox.plot_graph_routes(road_network,
-								   list_roads,
-								   bbox=bounding_box,
-								   figsize=fig_size,
-								   route_colors = edge_cols,
-								   route_linewidth=3,
-								   bgcolor = 'white',
-								   node_alpha = 0,
-								   orig_dest_size = 0,
-								   show=False, close=False)
-	print("plot_graph_routes: %s seconds" % (time.time() - start_time))
+	series_attribute = pd.Series(nx.get_edge_attributes(road_network, attribute_name))
 
-	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
-	cbar.set_label(colorbar_label, size=22, labelpad=15)  # labelpad is for spacing between colorbar and its label
-	cbar.ax.tick_params(labelsize=18)
+	# map
+	fig, ax = ox.plot_graph(road_network,
+							bbox=bounding_box,
+							figsize=fig_size,
+							edge_color=color_series,
+							edge_linewidth=1.8,
+							node_size=0,
+							bgcolor='w',
+							show=False, close=False)
 
+	# colorbar
+	axin1 = inset_axes(ax,
+					   width="5%",  # width = 5% of parent_bbox width
+					   height="50%",  # height : 50%
+					   loc='lower left',
+					   bbox_to_anchor=(1.06, 0.1, 0.8, 1),
+					   bbox_transform=ax.transAxes,
+					   borderpad=0)
+	cbar = fig.colorbar(sm, cax=axin1, shrink=0.5, extend='max', pad=0.03)
+	cbar.set_label(attribute_label, size=cbar__label_size,
+				   labelpad=15)  # labelpad is for spacing between colorbar and its label
+	cbar.ax.tick_params(labelsize=ticklabel_size)
+
+	# histogram
+	axin2 = inset_axes(ax,
+					   width="10%",  # width = 10% of parent_bbox width
+					   height="50%",  # height : 50%
+					   loc='lower left',
+					   bbox_to_anchor=(1.06, 0.7, 2, 0.5),
+					   bbox_transform=ax.transAxes,
+					   borderpad=0)
+	if log_normalise:
+		min_val = series_attribute.dropna().min()
+		if min_val == 0.0:
+			min_val += 1e-10
+		max_val = series_attribute.dropna().max()
+		n, bins, patches = axin2.hist(series_attribute.dropna(),
+									  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
+		plt.xscale('log')
+		plt.yscale('log')
+	else:
+		n, bins, patches = axin2.hist(series_attribute.dropna(), bins=n_bins, log=True)
+	plt.xlabel(attribute_label, size=hist__label_size)
+	plt.ylabel('# roads', labelpad=-1, size=hist__label_size)
+	plt.tick_params(labelsize=ticklabel_size)
+
+	# coloring the bars:
+	for c_bin, thispatch in zip(bins, patches):
+		color = sm.to_rgba(c_bin)
+		thispatch.set_facecolor(color)
+
+	# (eventually) saving the figure
 	if save_fig:
-		start_time = time.time()
-		filename = str('plot_emissions_%s__%s_normalized__%s.png' %(name_of_pollutant, normalization_factor, region_name.lower().replace(" ", "_")))
-		plt.savefig(filename, format='png', bbox_inches='tight')
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (
+		attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
+		fig.savefig(filename, format='png', bbox_inches='tight',
+					# facecolor='white'  # use if want the cbar to be on white (and not transparent) background
+					)
 		plt.close(fig)
-		print("savefig: %s seconds" % (time.time() - start_time))
 	else:
 		fig.show()
 
 	return fig, ax
 
 
-def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
+def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_name, tdf_with_emissions=None,
 									 normalization_factor=None,
 									 fig_size=(20, 20), n_bins=4, equal_size=False,
 									 color_map='autumn_r', bounding_box=None,
@@ -336,9 +301,10 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 
 	list_pollutants = ['CO_2', 'NO_x', 'PM', 'VOC']
 	if attribute_name in list_pollutants:
-		list_road_to_cumulate_emissions, colorbar_label = create_list_road_to_cumulate_emissions(
+		# if the attribute to plot is a pollutant, then it should be first added as an edges' attribute:
+		map__road__cum_em, colorbar_label = map_road_to_cumulate_emissions(
 			tdf_with_emissions, road_network, attribute_name, normalization_factor)
-		road_network = add_edge_emissions(list_road_to_cumulate_emissions, road_network, attribute_name)
+		road_network = add_edge_emissions(map__road__cum_em, road_network, attribute_name)
 	else:
 		colorbar_label = attribute_name.replace("_", " ")
 
@@ -367,75 +333,10 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	cbar.ax.tick_params(labelsize=18)
 
 	if save_fig:
-		filename = str('plot_road_%s__%s_normalised__%s' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
+		filename = str('plot_road_%s__%s_normalised__%s.png' % (attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
 		fig.savefig(filename, format='png', bbox_inches='tight',
 					#facecolor='white'  # use if want the cbar to be on white (and not transparent) background
 					)
-		plt.close(fig)
-	else:
-		fig.show()
-
-	return fig, ax
-
-def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_name,
-									 fig_size=(20, 20), color_map='coolwarm', bounding_box=None, save_fig=False):
-	"""Plot roads' attribute
-
-	Plotting the roads by attribute (e.g. road length or grade) using the module osmnx.plot_graph.
-	Colors indicate intensity of the attribute on each road.
-
-	Parameters
-	----------
-	road_network : networkx MultiGraph
-
-	attribute_name : string
-		the name of the attribute to plot. Must be one of the edges' attributes in the graph.
-
-	fig_size : tuple
-		size of the figure as (width, height).
-
-	color_map : str
-		name of the colormap to use.
-		Default is 'coolwarm'.
-
-	bounding_box : list
-		the bounding box as north, south, east, west, if one wants to plot the emissions only in a certain bbox of the network.
-		Default is None.
-
-	save_fig : bool
-		whether or not to save the figure.
-		Default is False.
-
-	Returns
-	-------
-	fig, ax
-	"""
-
-	edge_cols = ox.plot.get_edge_colors_by_attr(road_network, attribute_name, cmap=color_map, num_bins=4,
-												equal_size=True)
-
-	dict_road_to_attribute = nx.get_edge_attributes(road_network, attribute_name)
-
-	sm = cm.ScalarMappable(cmap=color_map, norm=colors.Normalize(vmin=min(dict_road_to_attribute.values()),
-																 vmax=max(dict_road_to_attribute.values())))
-
-	fig, ax = ox.plot_graph(road_network,
-							bbox=bounding_box,
-							figsize=fig_size,
-							edge_color=edge_cols,
-							edge_linewidth=2,
-							bgcolor='w',
-							node_size=0,
-							show=False, close=False)
-
-	cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
-	cbar.set_label(attribute_name.replace("_", " "), size=22,
-				   labelpad=15)  # labelpad is for spacing between colorbar and its label
-	cbar.ax.tick_params(labelsize=18)
-
-	if save_fig:
-		filename = str('plot_road_%s__%s.png' % (attribute_name, region_name.lower().replace(" ", "_")))
-		plt.savefig(filename, format='png', bbox_inches='tight')
 		plt.close(fig)
 	else:
 		fig.show()
@@ -491,7 +392,7 @@ def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, save_
 				   labelpad=13)  # labelpad is for spacing between colorbar and its label
 
 	if save_fig:
-		filename = str('plot_corr_matrix__%s' %region_name.lower().replace(" ", "_"))
+		filename = str('plot_corr_matrix__%s.png' %region_name.lower().replace(" ", "_"))
 		plt.savefig(filename, format='png', bbox_inches='tight', facecolor='white')
 		plt.close(fig)
 	else:
