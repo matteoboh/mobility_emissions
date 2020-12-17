@@ -105,7 +105,7 @@ def get_edge_colors_from_list(list_of_emissions_per_edge, num_bins=3, cmap='autu
 
 def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
 									 normalization_factor=None,
-									 fig_size=(20, 20), n_bins=30, log_normalise=False,
+									 fig_size=(20, 20), n_bins=30, log_normalise=False, quantile_cut=0.01,
 									 color_map='autumn_r', bounding_box=None,
 									 save_fig=False):
 	"""Plot roads' attribute
@@ -141,6 +141,11 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 		If True, matplotlib.colors.SymLogNorm is used for log-normalisation of the data, and shows the histogram on log scale.
 		Otherwise, matplotlib.colors.Normalize is used.
 		The logarithmic scale is suggested when the attribute to plot is one of the pollutant.
+
+	quantile_cut : float
+		used when log_normalise=True: the histogram is cut at this quantile to address issues with the log-normalisation
+		when the minimum value of the attribute is exactly 0.
+		Default value is 0.01.
 
 	color_map : str
 		name of the colormap to use.
@@ -213,7 +218,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	if log_normalise:
 		min_val = series_attribute.dropna().min()
 		if min_val == 0.0:
-			min_val += 1e-10
+			min_val += series_attribute.dropna().quantile(quantile_cut) #1e-5
 		max_val = series_attribute.dropna().max()
 		n, bins, patches = axin2.hist(series_attribute.dropna(),
 									  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
