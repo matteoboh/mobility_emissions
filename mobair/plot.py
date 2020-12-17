@@ -15,7 +15,7 @@ from .utils import *
 ############################################ PLOTTING #####################################################
 ###########################################################################################################
 
-def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, cmap='autumn_r', na_color='#999999'):
+def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, linthresh=0.01, cmap='autumn_r', na_color='#999999'):
 	"""Get colors based on edge attribute values.
 
 	Parameters
@@ -28,6 +28,10 @@ def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, cm
 	log_norm : bool
 		set the normalizer to use in cm.ScalarMappable.
 		if True, uses colors.LogNorm, else uses colors.Normalize.
+
+	linthresh : float
+		range around zero that is linearly normalized.
+		See the documentation of matplotlib.colors.SymLogNorm for details.
 
 	cmap : string
 		name of a matplotlib colormap.
@@ -53,7 +57,7 @@ def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, cm
 	max_val = vals.dropna().max()
 
 	if log_norm:
-		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=0.03, base=10)
+		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=linthresh, base=10)
 	else:
 		norm = colors.Normalize(vmin=min_val, vmax=max_val)
 
@@ -168,7 +172,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	if attribute_name in list_pollutants:
 		# if the attribute to plot is a pollutant, then it should be first added as an edges' attribute:
 		map__road__cum_em, attribute_label = map_road_to_cumulate_emissions(tdf_with_emissions, road_network,
-																				  attribute_name, normalization_factor)
+																			attribute_name, normalization_factor)
 		road_network = add_edge_emissions(map__road__cum_em, road_network, attribute_name)
 	else:
 		attribute_label = attribute_name.replace("_", " ").capitalize()
@@ -178,11 +182,12 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	cbar__label_size = fig_size[0] + 5
 	ticklabel_size = cbar__label_size - 2
 
+	series_attribute = pd.Series(nx.get_edge_attributes(road_network, attribute_name))
+
 	# colors and ScalarMappable
 	color_series, sm = get_edge_colors_by_attribute(road_network, attribute_name, log_norm=log_normalise,
+													linthresh=series_attribute.dropna().quantile(quantile_cut),
 													cmap=color_map, na_color='#999999')
-
-	series_attribute = pd.Series(nx.get_edge_attributes(road_network, attribute_name))
 
 	# map
 	fig, ax = ox.plot_graph(road_network,
@@ -218,7 +223,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	if log_normalise:
 		min_val = series_attribute.dropna().min()
 		if min_val == 0.0:
-			min_val += series_attribute.dropna().quantile(quantile_cut) #1e-5
+			min_val = series_attribute.dropna().quantile(quantile_cut) #1e-5
 		max_val = series_attribute.dropna().max()
 		n, bins, patches = axin2.hist(series_attribute.dropna(),
 									  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
