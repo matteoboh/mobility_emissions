@@ -337,3 +337,106 @@ def add_edge_centrality_measures(road_network):
 	nx.set_edge_attributes(road_network, edge_bcentrality__corrected, 'betweenness_centrality')
 
 	return road_network
+
+
+def add_edge_nearest_POIs(road_network, region, radius):
+	### POIs ###
+	food_amenities = ['pub', 'bar', 'restaurant', 'cafe', 'food_court']  # https://wiki.openstreetmap.org/wiki/Key:amenity
+	education_amenities = ['college', 'kindergarten', 'library', 'school', 'university']
+	service_amenities = ['bank', 'clinic', 'hospital', 'pharmacy', 'marketplace', 'post_office']
+	shops = ['department_store', 'mall', 'supermarket']  # https://wiki.openstreetmap.org/wiki/Key:shop
+	leisure = ['stadium', 'park']  # https://wiki.openstreetmap.org/wiki/Key:leisure
+	railway = ['station']  # https://wiki.openstreetmap.org/wiki/Key:railway
+	aeroway = ['aerodrome']  # https://wiki.openstreetmap.org/wiki/Key:aeroway
+	highway = ['traffic_signals', 'stop', 'crossing']  # https://wiki.openstreetmap.org/wiki/Key:highway
+
+	map__poi_type__poi = {'amenity': food_amenities + education_amenities + service_amenities,
+						  'leisure': leisure,
+						  'shop': shops,
+						  'railway': railway,
+						  'aeroway': aeroway,
+						  'highway': highway}
+
+	map__poi__poi_category = {'pub': 'food',
+							  'bar': 'food',
+							  'restaurant': 'food',
+							  'cafe': 'food',
+							  'food_court': 'food',
+							  'college': 'education',
+							  'kindergarten': 'education',
+							  'library': 'education',
+							  'school': 'education',
+							  'university': 'education',
+							  'bank': 'service',
+							  'clinic': 'service',
+							  'hospital': 'service',
+							  'pharmacy': 'service',
+							  'marketplace': 'service',
+							  'post_office': 'service',
+							  'stadium': 'leisure',
+							  'park': 'leisure',
+							  'department_store': 'retail',
+							  'mall': 'retail',
+							  'supermarket': 'retail',
+							  'station': 'transport',
+							  'aerodrome': 'transport',
+							  'traffic_signals': 'signage',
+							  'stop': 'signage',
+							  'crossing': 'signage'}
+
+	###
+	#start_time = time.time()
+
+	# querying all the POIs of certain types in the region
+	gdf_pois = ox.geometries_from_place(region, map__poi_type__poi)
+	# gdf_pois = ox.geometries_from_bbox(north, south, east, west, map__poi_type__poi)
+
+	set_edges_missing_geometry = set()
+	for u, v, key, edge_data in road_network.edges(keys=True, data=True):
+		# taking the centroid of the road
+		try:
+			road_centroid = edge_data['geometry'].centroid
+		except KeyError:
+			set_edges_missing_geometry.add((u, v, key))
+			# adding as attributes to the edge with None
+			for poi_cat in set(map__poi__poi_category.values()):
+				edge_data[poi_cat] = None
+			continue
+
+		# taking all the POIs in the gdf that are distant no more than radius from the centroid
+		gdf_pois['dist'] = list(map(lambda k: ox.distance.great_circle_vec(gdf_pois.loc[k]['geometry'].centroid.y,
+																		   gdf_pois.loc[k]['geometry'].centroid.x,
+																		   road_centroid.y, road_centroid.x),
+									gdf_pois.index))
+		gdf_nearest_pois = gdf_pois[gdf_pois['dist'] <= radius]
+
+		# creating dictionary with categories of POIs and counts
+		map__poi_cat__num_of_poi = {
+			'food': 0,
+			'education': 0,
+			'service': 0,
+			'leisure': 0,
+			'retail': 0,
+			'transport': 0,
+			'signage': 0
+		}
+		for poi_type, poi_list in map__poi_type__poi.items():
+			if poi_type in gdf_nearest_pois.columns:
+				c_df = getattr(gdf_nearest_pois, poi_type).value_counts()
+				for poi in [poi for poi in c_df.index if poi in poi_list]:
+					poi_category = map__poi__poi_category[poi]
+					# if poi_category not in map__poi_cat__num_of_poi:
+					#    map__poi_cat__num_of_poi[poi_category] = 0
+					map__poi_cat__num_of_poi[poi_category] += c_df[poi]
+
+		# adding as attributes to the edge
+		for poi_cat, num_of_poi in map__poi_cat__num_of_poi.items():
+			edge_data[poi_cat] = num_of_poi
+
+	#runtime = time.time() - start_time
+	#print('runtime: ', time.time() - start_time)
+	#print('')
+	print('> There were %s out of %s total edges with missing geometry attribute.' % (
+	len(set_edges_missing_geometry), road_network.size()))
+
+	return road_network
