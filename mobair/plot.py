@@ -354,7 +354,7 @@ def plot_road_network_with_attribute__OLD(road_network, attribute_name, region_n
 	return fig, ax
 
 
-def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, corr_coeff='spearman', save_fig=False):
+def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, corr_coef='spearman', save_fig=False):
 	"""Plots a correlation matrix with matplotlib.pyplot.imshow.
 
 	Parameters
@@ -369,7 +369,7 @@ def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, corr_
 	region_name : str
 		the name of the region to which the features belong.
 
-	corr_coeff : str
+	corr_coef : str
 		the name of the correlation coefficient for the label (e.g. 'spearman').
 
 	save_fig : bool
@@ -401,7 +401,7 @@ def plot_corr_matrix(corr_matrix, list_ordered_feature_names, region_name, corr_
 						   ha="center", va="center", color="w", weight='bold')
 
 	cbar = fig.colorbar(im, ax=ax, format='% .2f')
-	cbar.set_label(r'%s correlation coefficient ($\rho$)' %corr_coeff.capitalize(), size=13,
+	cbar.set_label(r'%s correlation coefficient ($\rho$)' %corr_coef.capitalize(), size=13,
 				   labelpad=13)  # labelpad is for spacing between colorbar and its label
 
 	if save_fig:
