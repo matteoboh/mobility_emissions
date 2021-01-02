@@ -57,7 +57,7 @@ def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, li
 	max_val = vals.dropna().max()
 
 	if log_norm:
-		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=linthresh, base=10)
+		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=linthresh, linscale=0, base=10)
 	else:
 		norm = colors.Normalize(vmin=min_val, vmax=max_val)
 
@@ -109,7 +109,8 @@ def get_edge_colors_from_list(list_of_emissions_per_edge, num_bins=3, cmap='autu
 
 def plot_road_network_with_attribute(road_network, attribute_name, region_name, tdf_with_emissions=None,
 									 normalization_factor=None,
-									 fig_size=(20, 20), n_bins=30, log_normalise=False, quantile_cut=0.01,
+									 fig_size=(20, 20), show_hist=True, n_bins=30, log_normalise=False,
+									 quantile_cut=0.01, # deprecated
 									 color_map='autumn_r', bounding_box=None,
 									 save_fig=False):
 	"""Plot roads' attribute
@@ -137,19 +138,22 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	fig_size : tuple
 		size of the figure as (width, height).
 
+	show_hist : bool
+		whether to draw or not an histogram with the distribution of attribute per road.
+
 	n_bins : int
-		This is used by osmnx.plot.get_edge_colors_by_attr to get colors based on edge attribute values.
-		If None, linearly map a color to each value. Otherwise, assign values to this many bins then assign a color to each bin.
+		the number of bins for the histrogram.
 
 	log_normalise : bool
-		If True, matplotlib.colors.SymLogNorm is used for log-normalisation of the data, and shows the histogram on log scale.
-		Otherwise, matplotlib.colors.Normalize is used.
+		if True, matplotlib.colors.SymLogNorm is used for log-normalisation of the data before mapping each value to a color,
+		and shows the histogram on log scale.
+		Otherwise, matplotlib.colors.Normalize is used, and the histogram is shown on linear scale.
 		The logarithmic scale is suggested when the attribute to plot is one of the pollutant.
 
 	quantile_cut : float
 		used when log_normalise=True: the histogram is cut at this quantile to address issues with the log-normalisation
 		when the minimum value of the attribute is exactly 0.
-		Default value is 0.01.
+		Default value is 0.01. (DEPRECATED)
 
 	color_map : str
 		name of the colormap to use.
@@ -158,6 +162,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	bounding_box : list
 		the bounding box as north, south, east, west, if one wants to plot the emissions only in a certain bbox of the network.
 		Default is None.
+		Note that if show_hist=True, the histogram refers to the entire road network, and not only to the area inside the bbox.
 
 	save_fig : bool
 		whether or not to save the figure.
@@ -183,10 +188,11 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 	ticklabel_size = cbar__label_size - 2
 
 	series_attribute = pd.Series(nx.get_edge_attributes(road_network, attribute_name))
+	first_nonzero = [x for x in series_attribute.dropna().sort_values() if x != 0][0]
 
 	# colors and ScalarMappable
 	color_series, sm = get_edge_colors_by_attribute(road_network, attribute_name, log_norm=log_normalise,
-													linthresh=series_attribute.dropna().quantile(quantile_cut),
+													linthresh=first_nonzero, #series_attribute.dropna().quantile(quantile_cut),
 													cmap=color_map, na_color='#999999')
 
 	# map
@@ -199,52 +205,58 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 							bgcolor='w',
 							show=False, close=False)
 
-	# colorbar
-	axin1 = inset_axes(ax,
-					   width="5%",  # width = 5% of parent_bbox width
-					   height="50%",  # height : 50%
-					   loc='lower left',
-					   bbox_to_anchor=(1.06, 0.1, 0.8, 1),
-					   bbox_transform=ax.transAxes,
-					   borderpad=0)
-	cbar = fig.colorbar(sm, cax=axin1, shrink=0.5, extend='max', pad=0.03)
-	cbar.set_label(attribute_label, size=cbar__label_size,
-				   labelpad=15)  # labelpad is for spacing between colorbar and its label
-	cbar.ax.tick_params(labelsize=ticklabel_size)
+	if show_hist:
+		# colorbar
+		axin1 = inset_axes(ax,
+						   width="5%",  # width = 5% of parent_bbox width
+						   height="50%",  # height : 50%
+						   loc='lower left',
+						   bbox_to_anchor=(1.06, 0.1, 0.8, 1),
+						   bbox_transform=ax.transAxes,
+						   borderpad=0)
+		cbar = fig.colorbar(sm, cax=axin1, shrink=0.5, extend='max', pad=0.03)
+		cbar.set_label(attribute_label, size=cbar__label_size,
+					   labelpad=15)  # labelpad is for spacing between colorbar and its label
+		cbar.ax.tick_params(labelsize=ticklabel_size)
 
-	# histogram
-	axin2 = inset_axes(ax,
-					   width="10%",  # width = 10% of parent_bbox width
-					   height="50%",  # height : 50%
-					   loc='lower left',
-					   bbox_to_anchor=(1.06, 0.7, 2, 0.5),
-					   bbox_transform=ax.transAxes,
-					   borderpad=0)
-	if log_normalise:
-		min_val = series_attribute.dropna().min()
-		if min_val == 0.0:
-			min_val = series_attribute.dropna().quantile(quantile_cut) #1e-5
-		max_val = series_attribute.dropna().max()
-		n, bins, patches = axin2.hist(series_attribute.dropna(),
-									  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
-		plt.xscale('log')
-		plt.yscale('log')
+		# histogram
+		axin2 = inset_axes(ax,
+						   width="10%",  # width = 10% of parent_bbox width
+						   height="50%",  # height : 50%
+						   loc='lower left',
+						   bbox_to_anchor=(1.06, 0.7, 2, 0.5),
+						   bbox_transform=ax.transAxes,
+						   borderpad=0)
+		if log_normalise:
+			min_val = series_attribute.dropna().min()
+			if min_val == 0.0:
+				min_val = first_nonzero #series_attribute.dropna().quantile(quantile_cut)
+			max_val = series_attribute.dropna().max()
+			n, bins, patches = axin2.hist(series_attribute.dropna(),
+										  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
+			plt.xscale('symlog', linthresh = first_nonzero)
+			plt.yscale('log')
+		else:
+			n, bins, patches = axin2.hist(series_attribute.dropna(), bins=n_bins, log=True)
+		plt.xlabel(attribute_label, size=hist__label_size)
+		plt.ylabel('# roads', labelpad=-1, size=hist__label_size)
+		plt.tick_params(labelsize=ticklabel_size)
+
+		# coloring the bars:
+		for c_bin, thispatch in zip(bins, patches):
+			color = sm.to_rgba(c_bin)
+			thispatch.set_facecolor(color)
 	else:
-		n, bins, patches = axin2.hist(series_attribute.dropna(), bins=n_bins, log=True)
-	plt.xlabel(attribute_label, size=hist__label_size)
-	plt.ylabel('# roads', labelpad=-1, size=hist__label_size)
-	plt.tick_params(labelsize=ticklabel_size)
-
-	# coloring the bars:
-	for c_bin, thispatch in zip(bins, patches):
-		color = sm.to_rgba(c_bin)
-		thispatch.set_facecolor(color)
+		cbar = fig.colorbar(sm, ax=ax, shrink=0.5, extend='max', pad=0.03)
+		cbar.set_label(attribute_label, size=cbar__label_size,
+					   labelpad=15)  # labelpad is for spacing between colorbar and its label
+		cbar.ax.tick_params(labelsize=ticklabel_size)
 
 	# (eventually) saving the figure
 	if save_fig:
 		filename = str('plot_road_%s__%s_normalised__%s.png' % (
 		attribute_name, str(normalization_factor).lower(), region_name.lower().replace(" ", "_")))
-		fig.savefig(filename, format='png', bbox_inches='tight',
+		fig.savefig(filename, format='png', bbox_inches='tight'
 					# facecolor='white'  # use if want the cbar to be on white (and not transparent) background
 					)
 		plt.close(fig)
