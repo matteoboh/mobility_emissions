@@ -234,7 +234,7 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 			max_val = series_attribute.dropna().max()
 			n, bins, patches = axin2.hist(series_attribute.dropna(),
 										  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
-			plt.xscale('symlog', linthresh = first_nonzero, linscale=0)
+			plt.xscale('symlog', linthresh = first_nonzero, linscale=0.01)
 			plt.yscale('log')
 		else:
 			n, bins, patches = axin2.hist(series_attribute.dropna(), bins=n_bins, log=True)
