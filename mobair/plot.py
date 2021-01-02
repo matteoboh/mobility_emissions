@@ -57,7 +57,7 @@ def get_edge_colors_by_attribute(road_network, attribute_name, log_norm=True, li
 	max_val = vals.dropna().max()
 
 	if log_norm:
-		norm = colors.SymLogNorm(vmin=min_val, vmax=max_val, linthresh=linthresh, linscale=0, base=10)
+		norm = colors.SymLogNorm(vmin=0, vmax=max_val, linthresh=linthresh, linscale=0, base=10)
 	else:
 		norm = colors.Normalize(vmin=min_val, vmax=max_val)
 
@@ -234,8 +234,8 @@ def plot_road_network_with_attribute(road_network, attribute_name, region_name, 
 			max_val = series_attribute.dropna().max()
 			n, bins, patches = axin2.hist(series_attribute.dropna(),
 										  bins=np.logspace(np.log10(min_val), np.log10(max_val), n_bins))
-			plt.xscale('symlog', linthresh = first_nonzero, linscale=0.01)
-			plt.yscale('log')
+			plt.xscale('symlog', linthresh = first_nonzero, linscale=1, subs=[2, 3, 4, 5, 6, 7, 8, 9])
+			plt.yscale('log', subs=[2, 3, 4, 5, 6, 7, 8, 9])  # subs are for placing minor ticks
 		else:
 			n, bins, patches = axin2.hist(series_attribute.dropna(), bins=n_bins, log=True)
 		plt.xlabel(attribute_label, size=hist__label_size)
