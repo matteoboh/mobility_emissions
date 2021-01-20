@@ -184,7 +184,7 @@ def compute_route_of_one_vehicle(road_network, tdf, vehicle_id):
 	tdf : TrajDataFrame
 		the trajectories of the vehicles.
 
-	vehicle_id : str
+	vehicle_id : int
 		ID of the vehicle.
 
 	Returns
@@ -194,13 +194,13 @@ def compute_route_of_one_vehicle(road_network, tdf, vehicle_id):
 	"""
 
 	tdf.sort_by_uid_and_datetime()
-	set_of_ids = set(tdf['uid'])
-	if str(vehicle_id) not in set_of_ids:
-		print('ID ' + vehicle_id + ' not found.')
-		return
 
 	# building a tdf with only the points belonging to the specified vehicle:
-	tdf_one_id = tdf.loc[tdf['uid'] == str(vehicle_id)]
+	try:
+		tdf_one_id = tdf.loc[tdf['uid'] == vehicle_id]
+	except KeyError:
+		print('ID ' + str(vehicle_id) + ' not found.')
+		return
 
 	# compute a list of nearest nodes to the points in the tdf:
 	list_of_nearest_nodes = find_nearest_nodes_in_network(road_network, tdf_one_id, return_tdf_with_new_col=False)

@@ -157,8 +157,6 @@ def map_road_to_emissions(tdf_with_emissions, name_of_pollutant='CO_2'):
 	tdf_with_emissions : TrajDataFrame
 		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
 
-	road_network : networkx MultiDiGraph
-
 	name_of_pollutant : string
 		the name of the pollutant. Must be one of ['CO_2', 'NO_x', 'PM', 'VOC'].
 
