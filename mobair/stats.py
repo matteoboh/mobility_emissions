@@ -207,6 +207,7 @@ def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribu
 		plt.savefig('scatter_matrix_%s.png' % pollutant)
 
 	if corr_coef == 'spearman':
-		return spearmanr(np.array(list_all_attributes_no_nan), axis=1), df
+		spearman_results = spearmanr(np.array(list_all_attributes_no_nan), axis=1)
+		return spearman_results[0], spearman_results[1], df
 	else:
 		return np.corrcoef(np.array(list_all_attributes_no_nan)), df
