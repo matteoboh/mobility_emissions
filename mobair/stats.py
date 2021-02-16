@@ -198,16 +198,15 @@ def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribu
 		list_all_attributes.append(c_list_attr)
 
 	df = pd.DataFrame(list_all_attributes).T
+	df.columns = list_attribute_names
 	df_no_nan = df.dropna()
 	list_all_attributes_no_nan = [list(df_no_nan[col]) for col in df_no_nan.columns]
 
 	if plot_scatter == True:
-		df.columns = list_attribute_names
-
 		fig = scatter_matrix(df, figsize=(10, 10))
 		plt.savefig('scatter_matrix_%s.png' % pollutant)
 
 	if corr_coef == 'spearman':
-		return spearmanr(np.array(list_all_attributes_no_nan), axis=1)
+		return spearmanr(np.array(list_all_attributes_no_nan), axis=1), df
 	else:
-		return np.corrcoef(np.array(list_all_attributes_no_nan))
+		return np.corrcoef(np.array(list_all_attributes_no_nan)), df
