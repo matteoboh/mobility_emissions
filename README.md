@@ -1,4 +1,4 @@
-# mobility-airpollution
+# mobility-emissions
 Collection of methods that compute emissions starting from mobility trajectories.
 
 Note: it relies on the library [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility).
