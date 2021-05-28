@@ -1,7 +1,7 @@
 # mobility-emissions
 Collection of methods that compute emissions starting from mobility trajectories.
 
-Note: it relies on the library [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility).
+Note: it relies on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) and [OSMnx](https://github.com/gboeing/osmnx).
 
 ### Description
 `mobility-emissions` allows to:
