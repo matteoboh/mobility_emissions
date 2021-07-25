@@ -7,6 +7,7 @@ from .emissions import *
 ############################################# UTILS #######################################################
 ###########################################################################################################
 
+
 def map_road_list_to_attribute(list_roads, road_network, attribute_name, default_value):
 	"""Maps each road of a list to the given attribute.
 
@@ -75,8 +76,7 @@ def normalize_emissions(tdf_with_emissions, percentage=True, list_of_pollutants=
 	return tdf_with_normalized_emissions
 
 
-def map_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
-								   normalization_factor=None):
+def map_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pollutant='CO_2', normalization_factor=None):
 	"""Outputs a dict of type {(u,v,key) : cumulate_emissions}, with cumulate_emissions being normalised or not.
 
 	Parameters:
@@ -135,73 +135,6 @@ def map_road_to_cumulate_emissions(tdf_with_emissions, road_network, name_of_pol
 	return map__road__cumulate_emissions, label
 
 
-def create_list_road_to_cumulate_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant='CO_2',
-										   normalization_factor=None):
-	"""Outputs a list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...], needed for plotting.
-
-	Parameters:
-	----------
-	tdf_with_emissions : TrajDataFrame
-		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
-
-	road_network : networkx MultiDiGraph
-
-	name_of_pollutant : str
-		the name of the pollutant for which one wants the list. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
-		Default is 'CO_2'.
-
-	normalization_factor : str
-		whether one wants to normalise the emissions on each road or not.
-		Must be in {'None', 'tot_emissions', 'road_length'}.
-		If 'tot_emissions', the resulting cumulate_emissions can be interpreted as the share of the total emissions
-		of the network in that road.
-		If 'road_length', the resulting cumulate_emissions can be interpreted as the quantity of emissions per meter
-		on that road.
-
-	Returns:
-	-------
-	list
-		a list of each edge with the (eventually normalised) cumulate emissions estimated on that edge.
-	label
-		a label to use for plotting.
-	"""
-
-	if normalization_factor not in list([None, 'tot_emissions', 'road_length']):
-		print('normalization_factor must be one of [None, tot_emissions, road_length]')
-		return
-
-	dict_road_to_emissions = map_road_to_emissions__OLD(tdf_with_emissions, road_network, name_of_pollutant)
-	array_all_emissions = np.array(tdf_with_emissions[name_of_pollutant])
-	list_road_to_cumulate_emissions = []
-	label = ''
-
-	if normalization_factor == None:
-		label = r'$%s$ (g)' % name_of_pollutant
-		list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em)] for road, em in
-										   dict_road_to_emissions.items()]
-	else:
-		if normalization_factor == 'road_length':
-			label = r'$%s$ (grams per meter of road)' % name_of_pollutant
-			#dict_road_to_attribute = nx.get_edge_attributes(road_network, 'length')
-
-			# note: if there are parallel edges between two nodes, the following dict saves only the lowest value of 'length'
-			map__road_with_emissions__length = {
-				(u, v): min(road_network.get_edge_data(u, v).values(), key=lambda x: x['length'])['length'] for
-				(u, v), em in dict_road_to_emissions.items() if em != None}
-			#
-			dict_road_to_cum_em_norm = {
-				(u, v): sum(dict_road_to_emissions[(u, v)]) / map__road_with_emissions__length[(u, v)]
-				for u, v in map__road_with_emissions__length}
-			list_road_to_cumulate_emissions = [[road[0], road[1], em] for road, em in dict_road_to_cum_em_norm.items()]
-		if normalization_factor == 'tot_emissions':
-			label = '% ' + r'$%s$' % name_of_pollutant
-			sum_all_emissions = np.sum(array_all_emissions)
-			list_road_to_cumulate_emissions = [[road[0], road[1], np.sum(em) / sum_all_emissions * 100] for road, em in
-											   dict_road_to_emissions.items()]
-
-	return list_road_to_cumulate_emissions, label
-
-
 def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollutant):
 	"""Outputs the list of cumulate emissions for each vehicle.
 
@@ -231,40 +164,10 @@ def create_list_cumulate_emissions_per_vehicle(tdf_with_emissions, name_of_pollu
 def add_edge_emissions(dict__road__emissions, road_network, name_of_pollutant='CO_2'):
 	"""Add the value of emissions as a new attribute to the edges of the road network.
 
-    Parameters
-    ----------
-    dict__road__emissions : dict
-        dict of type {(u,v,key) : emissions} (as returned by create_dict_road_to_cumulate_emissions).
-
-    road_network : networkx MultiGraph
-
-    name_of_pollutant : string
-        the name of the pollutant to plot. Must be in {'CO_2', 'NO_x', 'PM', 'VOC'}.
-        Default is 'CO_2'.
-
-    Returns
-    -------
-    networkx MultiDiGraph
-        road network with the new attribute on its edges.
-        Note that for the edges with no value of emissions the attribute is set to None.
-    """
-	for u, v, key, data in road_network.edges(keys=True, data=True):
-		try:
-			c_emissions = dict__road__emissions[(u, v, key)]
-			data[name_of_pollutant] = c_emissions
-		except KeyError:
-			data[name_of_pollutant] = None
-
-	return road_network
-
-
-def add_edge_emissions__OLD(list_road_to_cumulate_emissions, road_network, name_of_pollutant='CO_2'):
-	"""Add the value of emissions as a new attribute to the edges of the road network.
-
 	Parameters
 	----------
-	list_road_to_cumulate_emissions : list
-		list of type [[u,v,cumulate_emissions],[u,v,cumulate_emissions],...].
+	dict__road__emissions : dict
+		dict of type {(u,v,key) : emissions} (as returned by create_dict_road_to_cumulate_emissions).
 
 	road_network : networkx MultiGraph
 
@@ -278,11 +181,9 @@ def add_edge_emissions__OLD(list_road_to_cumulate_emissions, road_network, name_
 		road network with the new attribute on its edges.
 		Note that for the edges with no value of emissions the attribute is set to None.
 	"""
-	dict_road_to_cumulate_emissions = {(u, v): em for [u, v, em] in list_road_to_cumulate_emissions}
-
-	for u, v, data in road_network.edges(keys=False, data=True):
+	for u, v, key, data in road_network.edges(keys=True, data=True):
 		try:
-			c_emissions = dict_road_to_cumulate_emissions[(u, v)]
+			c_emissions = dict__road__emissions[(u, v, key)]
 			data[name_of_pollutant] = c_emissions
 		except KeyError:
 			data[name_of_pollutant] = None

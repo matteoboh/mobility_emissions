@@ -5,52 +5,76 @@ import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix
 from scipy.stats import spearmanr
 from skmob.measures.individual import *
+from skmob.preprocessing.clustering import cluster
+from shapely.geometry import MultiPoint
 from .emissions import *
 
 ###########################################################################################################
 ####################################### COMPUTE STATISTICS ################################################
 ###########################################################################################################
 
-def compute_corrs_with_mobility_measures(tdf_with_emissions, set_of_pollutants={'CO_2', 'NO_x', 'PM', 'VOC'},
+
+def compute_corrs_with_mobility_measures(tdf_original, tdf_with_emissions, set_of_pollutants={'CO_2', 'NO_x', 'PM', 'VOC'},
 										 corr_coef='spearman', plot_scatter=False):
 	"""Compute correlation coefficients between emissions and some mobility measures of the vehicles.
-	The mobility measures are: radius of gyration, maximum distance, number of points, average and median speed.
+	The mobility measures are: radius of gyration, uncorrelated entropy, maximum distance travelled, and straight line distance travelled.
 
 	Parameters
 	----------
+	tdf_original : TrajDataFrame
+		TrajDataFrame with original trajectories (before the time filtering and computation of emissions)
+
 	tdf_with_emissions : TrajDataFrame
-	  TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
+		TrajDataFrame with 4 columns ['CO_2', 'NO_x', 'PM', 'VOC'] collecting the instantaneous emissions for each point.
 
 	set_of_pollutants : set
-	  the set of pollutants for which one wants to compute the correlations.
+		the set of pollutants for which one wants to compute the correlations.
 
 	corr_coef : str
-	  if not 'spearman', then the Pearson's correlation coefficients are returned.
+		if not 'spearman', then the Pearson's correlation coefficients are returned.
 
 	plot_scatter : bool
-	  whether to show the scatter plot for each couple of attributes
+		whether to show the scatter plot for each couple of attributes
 
 	Returns
 	-------
 	DataFrame
-	  a DataFrame containing the computed coefficients for each couple (pollutant, mobility metric).
-	  a DataFrame containing the p-values returned by scipy.stats.spearmanr for each couple (pollutant, mobility metric). If corr_coef != 'spearman', then this DataFrame is empty.
+		a DataFrame containing the computed coefficients for each couple (pollutant, mobility metric).
+		a DataFrame containing the p-values returned by scipy.stats.spearmanr for each couple (pollutant, mobility metric). If corr_coef != 'spearman', then this DataFrame is empty.
+		a DataFrame with all the mobility metrics and emissions for each user.
 	"""
 
+	# stops detection (taking first & end points of each trajectory as stop locations)
+	tdf_start_points = tdf_original.groupby(['uid', 'tid']).head(1)
+	tdf_end_points = tdf_original.groupby(['uid', 'tid']).tail(1)
+	tdf_start_end_points = pd.concat([tdf_start_points, tdf_end_points]).sort_index()
+
+	# clustering stops
+	tdf_clustered_stops = cluster(tdf_start_end_points, cluster_radius_km=0.1)
+
+	# assigning the lat/lng of the centroid of each cluster to its points:
+	def assign_centroid(df):
+		centroid = MultiPoint(np.array(df[['lat', 'lng']])).centroid
+		df['lat'] = centroid.x
+		df['lng'] = centroid.y
+		return df
+
+	tdf_stops = tdf_clustered_stops.groupby(['uid', 'cluster']).apply(assign_centroid)
+
+	# computing the mobility measures:
 	print('Computing radius of gyration...')
-	rg_df = radius_of_gyration(tdf_with_emissions)
-	# print('Computing uncorrelated entropy...')
-	# tdf_stops = detection.stops(tdf_with_emissions)
-	# ue_df = uncorrelated_entropy(tdf_stops, normalize=True)
+	rg_df = radius_of_gyration(tdf_original)
+	print('Computing uncorrelated entropy...')
+	ue_df = uncorrelated_entropy(tdf_stops, normalize=True)
 	print('Computing maximum distance travelled...')
-	md_df = maximum_distance(tdf_with_emissions)
+	md_df = maximum_distance(tdf_stops)
+	print('Computing distance straight line...')
+	ds_df = distance_straight_line(tdf_original)
 
 	corr_coefs = pd.DataFrame(columns=set_of_pollutants, index=['r_gyr',
-																# 'un_entropy',
+																'un_entropy',
 																'max_dist',
-																'n_points',
-																'avg_speed',
-																'median_speed'])
+																'dist_straight'])
 	df_pvals = corr_coefs.copy()
 
 	map__vehicle__CO2 = map_vehicle_to_emissions(tdf_with_emissions, 'CO_2')
@@ -61,58 +85,47 @@ def compute_corrs_with_mobility_measures(tdf_with_emissions, set_of_pollutants={
 	df_rows = []
 	for c_uid in map__vehicle__CO2.keys():
 		c_rg = float(rg_df[rg_df['uid'] == c_uid]['radius_of_gyration'])
-		# c_ue = float(ue_df[ue_df['uid'] == c_uid]['norm_uncorrelated_entropy'])
+		c_ue = float(ue_df[ue_df['uid'] == c_uid]['norm_uncorrelated_entropy'])
 		c_md = float(md_df[md_df['uid'] == c_uid]['maximum_distance'])
-		c_npoints = len(map__vehicle__CO2[c_uid])
-		c_meanspeed = float(np.mean(tdf_with_emissions[tdf_with_emissions['uid'] == c_uid]['speed']))
-		c_medianspeed = float(np.median(tdf_with_emissions[tdf_with_emissions['uid'] == c_uid]['speed']))
-		# c_meanacc = float(np.mean(tdf_with_emissions[tdf_with_emissions['uid'] == c_uid]['acceleration']))
+		c_ds = float(ds_df[ds_df['uid'] == c_uid]['distance_straight_line'])
 		c_CO2 = np.sum(map__vehicle__CO2[c_uid])
 		c_NOx = np.sum(map__vehicle__NOx[c_uid])
 		c_PM = np.sum(map__vehicle__PM[c_uid])
 		c_VOC = np.sum(map__vehicle__VOC[c_uid])
-		c_row = [c_uid, c_CO2, c_NOx, c_PM, c_VOC, c_rg,
-				 # c_ue,
-				 c_md, c_npoints, c_meanspeed, c_medianspeed,
-				 # c_meanacc
-				 ]
+		c_row = [c_uid,
+				 c_CO2, c_NOx, c_PM, c_VOC,
+				 c_rg, c_ue, c_md, c_ds]
 		df_rows.append(c_row)
 
-	df = pd.DataFrame(df_rows, columns=['uid', 'CO_2', 'NO_x', 'PM', 'VOC', 'r_gyr',
-										# 'un_entropy',
-										'max_dist', 'n_points', 'avg_speed', 'median_speed',
-										# 'avg_acceleration'
-										])
+	df = pd.DataFrame(df_rows, columns=['uid',
+										'CO_2', 'NO_x', 'PM', 'VOC',
+										'r_gyr', 'un_entropy', 'max_dist', 'dist_straight'])
 
 	for c_pollutant in set_of_pollutants:
 		if corr_coef == 'spearman':
-			corr_coefs.loc['r_gyr', c_pollutant] = spearmanr(df[c_pollutant], df['r_gyr'])[0]
-			# corr_coefs.loc['un_entropy', c_pollutant] = spearmanr(df[c_pollutant], df['un_entropy'])[0]
-			corr_coefs.loc['max_dist', c_pollutant] = spearmanr(df[df['max_dist'].isnull() == False][c_pollutant],
-																df[df['max_dist'].isnull() == False]['max_dist'])[
-				0]  # this acounts for possible NaNs in max_dist
-			corr_coefs.loc['n_points', c_pollutant] = spearmanr(df[c_pollutant], df['n_points'])[0]
-			corr_coefs.loc['avg_speed', c_pollutant] = spearmanr(df[c_pollutant], df['avg_speed'])[0]
-			corr_coefs.loc['median_speed', c_pollutant] = spearmanr(df[c_pollutant], df['median_speed'])[0]
-			# corr_coefs.loc['avg_acceleration', c_pollutant] = spearmanr(df[c_pollutant], df['avg_acceleration'])[0]
+			spearman_radius = spearmanr(df[c_pollutant], df['r_gyr'])
+			spearman_entropy = spearmanr(df[c_pollutant], df['un_entropy'])
+			spearman_dist = spearmanr(df[df['max_dist'].isnull() == False][c_pollutant],
+									  df[df['max_dist'].isnull() == False]['max_dist'])
+			spearman_dist_straight = spearmanr(df[df['dist_straight'].isnull() == False][c_pollutant],
+											   df[df['dist_straight'].isnull() == False]['dist_straight'])
+
+			corr_coefs.loc['r_gyr', c_pollutant] = spearman_radius[0]
+			corr_coefs.loc['un_entropy', c_pollutant] = spearman_entropy[0]
+			corr_coefs.loc['max_dist', c_pollutant] = spearman_dist[0]
+			corr_coefs.loc['dist_straight', c_pollutant] = spearman_dist_straight[0]
+
 			# p-values
-			df_pvals.loc['r_gyr', c_pollutant] = spearmanr(df[c_pollutant], df['r_gyr'])[1]
-			# df_pvals.loc['un_entropy', c_pollutant] = spearmanr(df[c_pollutant], df['un_entropy'])[1]
-			df_pvals.loc['max_dist', c_pollutant] = spearmanr(df[df['max_dist'].isnull() == False][c_pollutant],
-															  df[df['max_dist'].isnull() == False]['max_dist'])[1]
-			df_pvals.loc['n_points', c_pollutant] = spearmanr(df[c_pollutant], df['n_points'])[1]
-			df_pvals.loc['avg_speed', c_pollutant] = spearmanr(df[c_pollutant], df['avg_speed'])[1]
-			df_pvals.loc['median_speed', c_pollutant] = spearmanr(df[c_pollutant], df['median_speed'])[1]
-		# df_pvals.loc['avg_acceleration', c_pollutant] = spearmanr(df[c_pollutant], df['avg_acceleration'])[1]
+			df_pvals.loc['r_gyr', c_pollutant] = spearman_radius[1]
+			df_pvals.loc['un_entropy', c_pollutant] = spearman_entropy[1]
+			df_pvals.loc['max_dist', c_pollutant] = spearman_dist[1]
+			df_pvals.loc['dist_straight', c_pollutant] = spearman_dist_straight[1]
 
 		else:
 			corr_coefs.loc['r_gyr', c_pollutant] = np.corrcoef(df[c_pollutant], df['r_gyr'])[1][0]
-			# corr_coefs.loc['un_entropy', c_pollutant] = np.corrcoef(df[c_pollutant], df['un_entropy'])[1][0]
+			corr_coefs.loc['un_entropy', c_pollutant] = np.corrcoef(df[c_pollutant], df['un_entropy'])[1][0]
 			corr_coefs.loc['max_dist', c_pollutant] = np.corrcoef(df[c_pollutant], df['max_dist'])[1][0]
-			corr_coefs.loc['n_points', c_pollutant] = np.corrcoef(df[c_pollutant], df['n_points'])[1][0]
-			corr_coefs.loc['avg_speed', c_pollutant] = np.corrcoef(df[c_pollutant], df['avg_speed'])[1][0]
-			corr_coefs.loc['median_speed', c_pollutant] = np.corrcoef(df[c_pollutant], df['median_speed'])[1][0]
-		# corr_coefs.loc['avg_acceleration', c_pollutant] = np.corrcoef(df[c_pollutant], df['avg_acceleration'])[1][0]
+			corr_coefs.loc['dist_straight', c_pollutant] = np.corrcoef(df[c_pollutant], df['dist_straight'])[1][0]
 
 	print("%s's correlation coeffs:" % corr_coef.capitalize())
 	print()
@@ -122,7 +135,7 @@ def compute_corrs_with_mobility_measures(tdf_with_emissions, set_of_pollutants={
 		fig = scatter_matrix(df.drop(['uid'], axis=1), figsize=(10, 10))
 		plt.show()
 
-	return corr_coefs, df_pvals
+	return corr_coefs, df_pvals, df
 
 
 def compute_stats_for_network(road_network, area=None, circuity_dist='gc'):
@@ -156,8 +169,8 @@ def compute_stats_for_network(road_network, area=None, circuity_dist='gc'):
 	return dict_stats
 
 
-def compute_corrs_between_edges_attributes(road_network, pollutant, list_attribute_names, corr_coef='spearman',
-										   plot_scatter=False):
+def compute_corrs_with_edges_attributes(road_network, pollutant, list_attribute_names, corr_coef='spearman',
+										plot_scatter=False):
 	"""Compute correlation coefficients between the edges' attributes of a road network
 	(for which a value of emissions has previously been estimated).
 
