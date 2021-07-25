@@ -341,3 +341,40 @@ def add_edge_nearest_POIs(road_network, region, radius):
 	len(set_edges_missing_geometry), road_network.size()))
 
 	return road_network
+
+
+def split_trajectories_in_tdf(tdf, stop_tdf):
+	"""Cluster the points of a TrajDataFrame into trajectories by using stop locations.
+
+	Parameters
+	----------
+	tdf : TrajDataFrame
+		original trajectories
+	stop_tdf : TrajDataFrame
+		the output of skmob.preprocessing.detection.stops, containing the stop locations of the users in the tdf
+
+	Returns
+	-------
+	TrajDataFrame
+		the TrajDataFrame with a new column 'tid' collecting the unique identifier of the trajectory to which the point
+		belongs.
+	"""
+	tdf_with_tid = tdf.groupby('uid').apply(_split_trajectories, stop_tdf)
+	return tdf_with_tid.reset_index(drop=True)
+
+
+def _split_trajectories(tdf, stop_tdf):
+	c_uid = tdf.uid[:1].item()
+	stop_tdf_current_user = stop_tdf[stop_tdf.uid == c_uid]
+	if stop_tdf_current_user.empty:
+		return
+	else:
+		first_traj = [tdf[tdf.datetime <= stop_tdf_current_user.datetime[:1].item()]]
+		last_traj = [tdf[tdf.datetime >= stop_tdf_current_user.leaving_datetime[-1:].item()]]
+		all_other_traj = [tdf[(tdf.datetime >= start_traj_time) & (tdf.datetime <= end_traj_time)] for end_traj_time, start_traj_time in zip(stop_tdf_current_user['datetime'][1:], stop_tdf_current_user['leaving_datetime'][:-1])]
+		all_traj = first_traj + all_other_traj + last_traj
+		tdf_with_tid = pd.concat(all_traj)
+		list_tids = [list(np.repeat(i, len(df))) for i, df in zip(range(1,len(all_traj)+1), all_traj)]
+		list_tids_ravel = [item for sublist in list_tids for item in sublist]
+		tdf_with_tid['tid'] = list_tids_ravel
+		return tdf_with_tid
