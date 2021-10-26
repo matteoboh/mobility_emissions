@@ -1,7 +1,10 @@
 keys.py
 fitting.py
+new_experiments.ipynb
+experiment_fitting_results
 data
 tests
+output
 
 # Jupyter Notebook
 .ipynb_checkpoints

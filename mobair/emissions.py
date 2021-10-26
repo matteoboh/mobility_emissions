@@ -38,6 +38,7 @@ def match_vehicle_to_fuel_type(tdf, df_with_all_vehicles, list_of_fuel_types=['P
 
 	set_of_uid = set(tdf['uid'])
 	df_subset_of_vehicles = df_with_all_vehicles.loc[df_with_all_vehicles['vid'].isin(set_of_uid)]
+	df_subset_of_vehicles = df_subset_of_vehicles.fillna('PETROL')  # if info is missing, put 'PETROL'
 
 	map_uid__fuel_type = {}
 
