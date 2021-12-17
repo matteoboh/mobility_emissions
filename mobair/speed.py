@@ -51,6 +51,27 @@ def compute_speed_from_tdf_for_one_id(tdf):
 		return
 
 	else:
+		list_dist = [gislib.getDistanceByHaversine((lat0,lng0),(lat1,lng1))*1000 for lat0,lng0,lat1,lng1 in zip(tdf['lat'][:-1],tdf['lng'][:-1],tdf['lat'][1:],tdf['lng'][1:])]
+		list_time = [utils.diff_seconds(t_0, t_1) for t_0,t_1 in zip(tdf['datetime'][:-1], tdf['datetime'][1:])]
+		list_speed = [0] + [dist/time if time != 0 else np.nan for dist, time in zip(list_dist,list_time)]  # if distance is 0 put a temporary nan as flag
+
+		tdf_with_speed = tdf.copy()
+		tdf_with_speed.loc[:, 'speed'] = list_speed
+
+		tdf_with_speed.fillna(method='ffill', inplace=True)  # filling nans with previous value in column
+
+	return tdf_with_speed
+
+def compute_speed_from_tdf_for_one_id__OLD(tdf):
+
+	tdf.sort_by_uid_and_datetime()
+	set_of_ids = set(tdf['uid'])
+
+	if len(set_of_ids) != 1:
+		print('Called function on more than one ID: use compute_speed_from_tdf instead.')
+		return
+
+	else:
 		list_of_speed = [0]
 		for c_row in range(0, tdf.shape[0] - 1):
 			loc_0 = (tdf['lat'].iloc[c_row], tdf['lng'].iloc[c_row])
@@ -117,6 +138,36 @@ def compute_acceleration_from_tdf(tdf):
 
 
 def compute_acceleration_from_tdf_for_one_id(tdf):
+	# This function computes acceleration (in m/s^2) for each point of a trajectory
+	# based on speed and time interval.
+	# If the tdf does not have the column 'speed', it first computes it calling compute_speed_from_tdf.
+	# N.B.: this function correctly works only if there is exactly one 'uid' in the tdf.
+	# To compute the acceleration from a tdf with more than one 'uid', use the general function compute_acceleration_from_tdf.
+
+	tdf.sort_by_uid_and_datetime()
+	set_of_ids = set(tdf['uid'])
+
+	if 'speed' not in tdf.columns:
+		tdf = compute_speed_from_tdf(tdf)
+
+	if len(set_of_ids) != 1:
+		print('Called function on more than one ID: use compute_acceleration_from_tdf instead.')
+		return
+
+	else:
+		list_diff_speed = [speed1-speed0 for speed0,speed1 in zip(tdf['speed'][:-1], tdf['speed'][1:])]
+		list_time = [utils.diff_seconds(t_0, t_1) for t_0, t_1 in zip(tdf['datetime'][:-1], tdf['datetime'][1:])]
+		list_acc = [0] + [diff_speed / time if time != 0 else np.nan for diff_speed, time in zip(list_diff_speed, list_time)]  # if distance is 0 put a temporary nan as flag
+
+		tdf_with_acc = tdf.copy()
+		tdf_with_acc.loc[:, 'acceleration'] = list_acc
+
+		tdf_with_acc.fillna(method='ffill', inplace=True)  # filling nans with previous value in column
+
+	return tdf_with_acc
+
+
+def compute_acceleration_from_tdf_for_one_id__OLD(tdf):
 	# This function computes acceleration (in m/s^2) for each point of a trajectory
 	# based on speed and time interval.
 	# If the tdf does not have the column 'speed', it first computes it calling compute_speed_from_tdf.
