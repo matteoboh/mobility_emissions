@@ -117,6 +117,9 @@ def compute_acceleration_from_tdf(tdf):
 	if speed has not been previously computed, a function is firstly called to compute it.
 	"""
 
+	if 'speed' not in tdf.columns:
+		tdf = compute_speed_from_tdf(tdf)
+
 	tdf.sort_by_uid_and_datetime()
 
 	groupby = []
@@ -146,9 +149,6 @@ def compute_acceleration_from_tdf_for_one_id(tdf):
 
 	tdf.sort_by_uid_and_datetime()
 	set_of_ids = set(tdf['uid'])
-
-	if 'speed' not in tdf.columns:
-		tdf = compute_speed_from_tdf(tdf)
 
 	if len(set_of_ids) != 1:
 		print('Called function on more than one ID: use compute_acceleration_from_tdf instead.')
