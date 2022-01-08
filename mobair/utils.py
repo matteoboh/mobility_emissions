@@ -378,3 +378,54 @@ def _split_trajectories(tdf, stop_tdf):
 		list_tids_ravel = [item for sublist in list_tids for item in sublist]
 		tdf_with_tid['tid'] = list_tids_ravel
 		return tdf_with_tid
+
+
+def select_trajectories_within_tessellation(tdf, tessellation):
+	"""
+	Select only the trajectories that fall entirely within the spatial tessellation.
+
+	Parameters
+	----------
+	tdf : TrajDataFrame
+		the TrajDataFrame the describe the trajectories
+
+	tessellation : GeoDataFrame
+		the GeoDataFrame describing the spatial tessellation
+
+	Returns
+	-------
+	TrajDataFrame
+		a TrajDataFrame that contains all and only the trajectories that fall
+		entirely within the spatial tessellation
+
+	Credits to @jonpappalord.
+	"""
+	# map each point to the corresponding tile in the tessellation
+	tdf_mapped = tdf.mapping(tessellation)
+
+	def check_nan(tdf):
+		"""
+		Check if there is a NaN in a trajectory's TrajDataFrame.
+
+		Parameters
+		----------
+		uid_tid_tdf: TrajDataFrame
+			contains info about a user's trajectory
+
+		Returns
+		-------
+		TrajDataFrame
+			the user's trajectory
+		"""
+		if not tdf['tile_ID'].isna().values.any():
+			return tdf
+		else:
+			tdf['tile_ID'] = -1
+			return tdf
+
+	if 'tid' in tdf_mapped.columns:
+		grouped_tdf = tdf_mapped.groupby(['uid', 'tid']).apply(lambda uid_tid_tdf: check_nan(uid_tid_tdf))
+	else:
+		grouped_tdf = tdf_mapped.groupby('uid').apply(lambda uid_tdf: check_nan(uid_tdf))
+	return grouped_tdf[grouped_tdf['tile_ID'] != -1]
+
