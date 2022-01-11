@@ -61,8 +61,8 @@ def streetDraw(place, G, attribute_to_plot, schemeColor='yelloworangered', save_
 
     if save_fig:
         city = place.split(',')[0]
-        chart.save(f'{city}_map_{attribute_to_plot}.png')
-        chart.save(f'{city}_map_{attribute_to_plot}.svg')
+        save(chart, f'{city}_map_{attribute_to_plot}.png')
+        save(chart, f'{city}_map_{attribute_to_plot}.svg')
         print(f'{city} images saved')
 
     return chart
