@@ -1,6 +1,5 @@
 import osmnx as ox
 import altair as alt
-from altair_saver import save
 
 
 def streetDraw(place, G, attribute_to_plot, schemeColor='yelloworangered', save_fig=False):
@@ -60,6 +59,7 @@ def streetDraw(place, G, attribute_to_plot, schemeColor='yelloworangered', save_
     chart = lines + speedLines  # + water
 
     if save_fig:
+        from altair_saver import save
         city = place.split(',')[0]
         save(chart, f'{city}_map_{attribute_to_plot}.png')
         save(chart, f'{city}_map_{attribute_to_plot}.svg')
