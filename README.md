@@ -1,10 +1,10 @@
 # mobility-emissions
 This repository is a collection of methods that can be used to estimate the instantaneous emissions of four air pollutants (CO2, NOx, PM, VOC) starting from the GPS trajectories describing the vehicles' trips.
 
-Note: it mainly relies on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) and [OSMnx](https://github.com/gboeing/osmnx).
+Note: the methods contained in ```mobair``` mainly rely on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) and [OSMnx](https://github.com/gboeing/osmnx).
 
 
-## Article
+### Publications
 A pre-print version of the paper is available at https://arxiv.org/abs/2107.03282.
 
 The code used for the figures of the paper is in `notebooks/paper_figures.ipynb`.
@@ -19,6 +19,7 @@ The methods collected in `mobair` allow:
 
 
 ## Step-by-step procedure
+What follows is the step-by-step procedure for the estimation of the vehicles' emissions starting from their raw mobility trajectories.
 ### Preprocessing
 After some preprocessing of the trajectory data such as trajectory selection and filtering (for which we remand to the [example notebook](https://github.com/matteoboh/mobility_emissions/blob/5003f0bc4c9bc404f3e6915aa0f576eda37d7048/notebooks/example_with_public_data.ipynb)), we resume the fundamental steps for estimating the emissions in the following.
 
@@ -123,5 +124,10 @@ chart
 ```
 ![mapping emissions](notebooks/beijing_emissions.png)
 
-## Examples
+### More examples
 For more detailed examples on how to use the methods of this repository see `example_with_public_data.ipynb` and `example_in_Rome.ipynb` in the `notebooks` folder. 
+
+
+### Aknowledgements
+We thank Giuliano Cornacchia, Vasiliki Voukelatou, Massimiliano Luca, and Giovanni Mauro for the useful suggestions. 
+Special thanks to Daniele Fadda for the precious support on data visualization.
