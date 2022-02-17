@@ -57,34 +57,26 @@ def match_vehicle_to_fuel_type(tdf, df_with_all_vehicles, list_of_fuel_types=['P
 
 def compute_emissions(tdf, df_with_emission_functions, dict_of_fuel_types_in_tdf):
 	"""Compute instantaneous emissions with equations used in [Nyhan et al. (2016)].
-
 	For each point in a TrajDataFrame, computes instantaneous emissions of 4 pollutants (CO_2, NO_x, PM, VOC).
-
 	Parameters
 	----------
 	tdf : TrajDataFrame
 		the trajectories of the vehicles.
-
 	df_with_emission_functions : DataFrame
 		the emission functions took from Table 2 in [Int Panis et al. (2006)]
-
 	dict_of_fuel_types_in_tdf : dictionary
 		maps each 'uid' in the TrajDataFrame to its fuel_type, with fuel_type in {'PETROL', 'DIESEL', 'LPG'}
-
 	Returns
 	-------
 	TrajDataFrame
 		the TrajDataFrame with 4 more columns collecting the instantaneous emissions for each point.
-
 	Warnings
 	--------
 	if speed and acceleration have not been previously computed, a function is firstly called to compute them, and the execution will be slower.
-
 	References
 	----------
 	[Nyhan et al. (2016)] M. Nyhan, S. Sobolevsky, C. Kang, P. Robinson, A. Corti, M. Szell, D. Streets, Z. Lu, R. Britter, S.R.H. Barrett, C. Ratti, Predicting vehicular emissions in high spatial resolution using pervasively measured transportation data and microscopic emissions model, Atmospheric Environment, Volume 140, 2016, https://doi.org/10.1016/j.atmosenv.2016.06.018.
 	[Int Panis et al. (2006)] L. Int Panis, S. Broekx, R. Liu, Modelling instantaneous traffic emission and the influence of traffic speed limits, Science of The Total Environment, Volume 371, Issues 1–3, 2006, https://doi.org/10.1016/j.scitotenv.2006.08.017.
-
 	"""
 
 	if 'acceleration' not in tdf.columns:
@@ -93,23 +85,12 @@ def compute_emissions(tdf, df_with_emission_functions, dict_of_fuel_types_in_tdf
 	set_of_pollutants = set(df_with_emission_functions['pollutant'])
 
 	dict_pollutant_to_emission = {}
-
-	for c_row in range(0, tdf.shape[0]):
-		c_uid = tdf['uid'].iloc[c_row]
-		c_fuel_type = dict_of_fuel_types_in_tdf[c_uid]
-		c_acc = tdf['acceleration'].iloc[c_row]
-		c_speed = tdf['speed'].iloc[c_row]
-
-		for c_pollutant in set_of_pollutants:
-			input_df = df_with_emission_functions[(df_with_emission_functions['pollutant'] == c_pollutant) &
-												  (df_with_emission_functions['fuel_type'] == c_fuel_type)]
-			if c_pollutant in {'CO_2', 'PM'}:
-				inst_emission = compute_emission_for_CO2_and_PM(input_df, c_speed, c_acc)
-			else:
-				# if c_pollutant in {'NO_x, VOC'}:
-				inst_emission = compute_emission_for_NOx_and_VOC(input_df, c_speed, c_acc)
-
-			dict_pollutant_to_emission.setdefault(c_pollutant, []).append(inst_emission)
+	for c_pollutant in set_of_pollutants:
+		print('estimating %s...' %c_pollutant)
+		if c_pollutant in {'CO_2', 'PM'}:
+			dict_pollutant_to_emission[c_pollutant] = [compute_emission_for_CO2_and_PM(df_with_emission_functions[(df_with_emission_functions['pollutant'] == c_pollutant) & (df_with_emission_functions['fuel_type'] == dict_of_fuel_types_in_tdf[c_uid])], c_speed, c_acc) for c_uid, c_speed, c_acc in zip(tdf['uid'], tdf['speed'], tdf['acceleration'])]
+		else:
+			dict_pollutant_to_emission[c_pollutant] = [compute_emission_for_NOx_and_VOC(df_with_emission_functions[(df_with_emission_functions['pollutant'] == c_pollutant) & (df_with_emission_functions['fuel_type'] == dict_of_fuel_types_in_tdf[c_uid])], c_speed, c_acc) for c_uid, c_speed, c_acc in zip(tdf['uid'], tdf['speed'], tdf['acceleration'])]
 
 	# Adding columns with emissions for each pollutant to the tdf
 	tdf_with_emissions = tdf.copy()
