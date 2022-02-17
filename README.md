@@ -135,6 +135,7 @@ For more detailed examples on how to use the methods of this repository also on 
 ### Aknowledgements
 We thank Giuliano Cornacchia, Vasiliki Voukelatou, Massimiliano Luca, and Giovanni Mauro for the useful suggestions. 
 Special thanks to Daniele Fadda for the precious support with data visualization.
+This study has been supported by EU H2020 project [Track&Know](https://cordis.europa.eu/project/id/780754) (Grant Agreement 780754), EU H2020 project [SoBigData++](https://cordis.europa.eu/project/id/871042) RI (Grant Agreement 871042), and EU H2020 project [HumanE AI Network](https://cordis.europa.eu/project/id/952026) (Grant Agreement 952026).
 
 
 ## References
