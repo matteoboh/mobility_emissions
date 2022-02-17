@@ -6,7 +6,7 @@
 
 This repository is a collection of methods that can be used to estimate the instantaneous emissions of four air pollutants (CO2, NOx, PM, VOC) starting from the GPS trajectories describing the vehicles' trips.
 
-Note: the methods contained in ```mobair``` mainly rely on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) and [OSMnx](https://github.com/gboeing/osmnx).
+Note: the methods contained in ```mobair``` mainly rely on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) [1] and [OSMnx](https://github.com/gboeing/osmnx) [2].
 
 ### Publications
 A pre-print version of the paper is available at https://arxiv.org/abs/2107.03282.
@@ -129,9 +129,19 @@ chart
 ![mapping emissions](notebooks/beijing_emissions.png)
 
 ### More examples
-For more detailed examples on how to use the methods of this repository see `example__taxi_Beijing.ipynb` and `example__taxi_Rome.ipynb` in the `notebooks` folder. 
+For more detailed examples on how to use the methods of this repository see  `example__taxi_Rome.ipynb` and `example__taxi_Beijing.ipynb` (using a sample of taxis' trajectories from [3] and [4], respectively) in the `notebooks` folder. 
 
 
 ### Aknowledgements
 We thank Giuliano Cornacchia, Vasiliki Voukelatou, Massimiliano Luca, and Giovanni Mauro for the useful suggestions. 
 Special thanks to Daniele Fadda for the precious support with data visualization.
+
+
+## References
+[1] Luca Pappalardo, Filippo Simini, Gianni Barlacchi and Roberto Pellungrini. scikit-mobility: a Python library for the analysis, generation and risk assessment of mobility data, 2019, https://arxiv.org/abs/1907.07062
+
+[2] Boeing, G. 2017. "OSMnx: New Methods for Acquiring, Constructing, Analyzing, and Visualizing Complex Street Networks." Computers, Environment and Urban Systems 65, 126-139. doi:10.1016/j.compenvurbsys.2017.05.004
+
+[1] Lorenzo Bracciale, Marco Bonola, Pierpaolo Loreti, Giuseppe Bianchi, Raul Amici, Antonello Rabuffi, CRAWDAD dataset roma/taxi (v. 2014‑07‑17), downloaded from https://crawdad.org/roma/taxi/20140717, https://doi.org/10.15783/C7QC7M, Jul 2014.
+
+[2] Jing Yuan, Yu Zheng, Chengyang Zhang, Wenlei Xie, Xing Xie, Guangzhong Sun, and Yan Huang. T-drive: driving directions based on taxi trajectories. In Proceedings of the 18th SIGSPATIAL International Conference on Advances in Geographic Information Systems, GIS ’10, pages 99-108, New York, NY, USA,2010. ACM.
