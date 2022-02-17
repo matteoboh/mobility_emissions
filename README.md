@@ -1,4 +1,4 @@
-# mobility-emissions
+# Computing vehicles' emissions on the road network
 
 <figure>
 <img align='right' width="360" height="360" src="notebooks/rome_taxi_emissions.png">
