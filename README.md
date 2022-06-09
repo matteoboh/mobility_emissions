@@ -132,9 +132,9 @@ chart
 For more detailed examples on how to use the methods of this repository also on open data see  `example__taxi_Rome.ipynb` and `example__taxi_Beijing.ipynb` (using a sample of taxis' trajectories from [3] and [4], respectively) in the `notebooks` folder. 
 
 
-### Aknowledgements
+### Acknowledgements
 We thank Giuliano Cornacchia, Vasiliki Voukelatou, Massimiliano Luca, and Giovanni Mauro for the useful suggestions. 
-Special thanks to Daniele Fadda for the precious support with data visualization.
+Special thanks to Daniele Fadda for the precious support with data visualization. M.B. also thank Patricio Reyes for the constant support.
 This study has been supported by EU H2020 project [Track&Know](https://cordis.europa.eu/project/id/780754) (Grant Agreement 780754), EU H2020 project [SoBigData++](https://cordis.europa.eu/project/id/871042) RI (Grant Agreement 871042), and EU H2020 project [HumanE AI Network](https://cordis.europa.eu/project/id/952026) (Grant Agreement 952026).
 
 
