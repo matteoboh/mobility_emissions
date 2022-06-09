@@ -9,7 +9,7 @@ This repository is a collection of methods that can be used to estimate the inst
 Note: the methods contained in ```mobair``` mainly rely on the Python libraries [scikit-mobility](https://github.com/scikit-mobility/scikit-mobility) [1] and [OSMnx](https://github.com/gboeing/osmnx) [2].
 
 ### Publications
-A pre-print version of the paper is available at https://arxiv.org/abs/2107.03282.
+Böhm, M., Nanni, M. & Pappalardo, L. Gross polluters and vehicle emissions reduction. Nat Sustain (2022). https://doi.org/10.1038/s41893-022-00903-x
 
 The code used for the figures of the paper is in `notebooks/paper_figures.ipynb`.
 
