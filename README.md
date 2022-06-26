@@ -21,6 +21,20 @@ The methods collected in `mobair` allow:
 * computation of emissions: compute the instantaneous emissions of CO2, NOx, PM, VOC in each point;
 * visualize the emissions on the road network.
 
+## Requirements
+In order to run the examples, first create and activate a new conda environment through the `environment.yml` file, which contains all the required packages:
+```
+conda env create -f environment.yml
+```
+This will create a new conda environment called `mobair`, which you can activate with
+```
+conda activate mobair
+```
+To use it inside jupyter notebook, open a notebook and check if the kernel `mobair` is in the kernel list. If not, run the following:
+```
+env=$(basename `echo $CONDA_PREFIX`)
+python -m ipykernel install --user --name "$env" --display-name "Python ["$env"]"
+```
 
 ## Step-by-step procedure
 What follows is the step-by-step procedure for the estimation of the vehicles' emissions starting from their raw mobility trajectories.
