@@ -1,4 +1,4 @@
-name: mobility
+name: mobair
 channels:
   - anaconda
   - defaults
