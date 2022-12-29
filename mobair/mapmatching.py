@@ -42,8 +42,7 @@ def find_nearest_nodes_in_network(road_network, tdf, return_tdf_with_new_col=Fal
 	vec_of_latitudes = np.array(tdf['lat'])
 
 	# for each (lat,lon), find the nearest node in the road network:
-	list_of_nearest_nodes = ox.get_nearest_nodes(road_network, X=vec_of_longitudes, Y=vec_of_latitudes,
-												 method='balltree')
+	list_of_nearest_nodes = ox.nearest_nodes(road_network, X=vec_of_longitudes, Y=vec_of_latitudes)
 	###
 	# method (str {None, 'kdtree', 'balltree'}) – Which method to use for finding nearest node to each point.
 	# If None, we manually find each node one at a time using osmnx.utils.get_nearest_node and haversine.
@@ -94,8 +93,7 @@ def find_nearest_edges_in_network(road_network, tdf, return_tdf_with_new_col=Fal
 	vec_of_latitudes = np.array(tdf['lat'])
 
 	# for each (lat,lon), find the nearest edge in the road network:
-	array_of_nearest_edges = ox.get_nearest_edges(road_network, X=vec_of_longitudes, Y=vec_of_latitudes,
-												 method='balltree')
+	array_of_nearest_edges = ox.nearest_edges(road_network, X=vec_of_longitudes, Y=vec_of_latitudes)
 	###
 	# method (str {None, 'kdtree', 'balltree'}) – Which method to use for finding nearest node to each point.
 	# If None, we manually find each node one at a time using osmnx.utils.get_nearest_node and haversine.
